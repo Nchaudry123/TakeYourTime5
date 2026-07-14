@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Take Your Time — Persona 5 Royal Calendar",
   description: "A live, searchable daily planner for an optimized Persona 5 Royal playthrough.",
   icons: { icon: "/favicon.svg" },
