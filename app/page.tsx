@@ -85,6 +85,7 @@ export default function Home() {
   const [velvetMode, setVelvetMode] = useState(false);
   const [phanFeedOpen, setPhanFeedOpen] = useState(false);
   const [monaRun, setMonaRun] = useState(false);
+  const [denOpen, setDenOpen] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const cityLayer = useRef<HTMLDivElement>(null);
   const cityEcho = useRef<HTMLDivElement>(null);
@@ -350,8 +351,9 @@ export default function Home() {
         <div className="map-sources"><span>UNLOCK RESEARCH</span><a href="https://aqiu384.github.io/megaten-database/p5r/overworld" target="_blank" rel="noreferrer">Megaten Database</a><a href="https://gamefaqs.gamespot.com/ps4/260936-persona-5-royal/faqs/78256" target="_blank" rel="noreferrer">GameFAQs route</a><a href="https://kamigame.jp/P5R/%E3%82%A8%E3%83%AA%E3%82%A2/index.html" target="_blank" rel="noreferrer">Kamigame unlock table</a></div>
       </div>}
     </section>
-    <footer><strong>TAKE YOUR TIME.</strong><span>Live route • optimal answers • device-local progress</span></footer>
+    <footer><strong>TAKE YOUR TIME.</strong><button type="button" className="den-trigger" onClick={() => setDenOpen(true)}>THIEVES DEN <b>{totalDone >= 25 ? "OPEN" : "LOCKED"}</b></button><span>Live route • optimal answers • device-local progress</span></footer>
     {morganaVisible && <aside className="morgana-nudge" aria-live="polite"><button type="button" className="morgana-face" onClick={() => setMorganaTaps(taps => taps + 1)} aria-label="Ask Morgana for another hint"><i /><b>★</b></button><div><small>MORGANA SAYS</small><strong>{morganaTaps >= 4 ? "I'M NOT A CAT!" : morganaTaps >= 2 ? "Seriously. Tomorrow is another day." : "Shouldn't you be getting to sleep?"}</strong><span>Late-night guide detected.</span></div><button type="button" className="morgana-close" onClick={() => setMorganaVisible(false)} aria-label="Dismiss Morgana">×</button></aside>}
     {velvetMode && <button type="button" className="velvet-curtain" onClick={() => setVelvetMode(false)} aria-label="Leave the Velvet Room"><span className="velvet-chain left" /><span className="velvet-chain right" /><span><small>THE VELVET ROOM</small><strong>WELCOME, INMATE</strong><em>Your rehabilitation continues.</em><b>TOUCH ANYWHERE TO RETURN</b></span></button>}
+    {denOpen && <section className="thieves-den" role="dialog" aria-modal="true" aria-label="Thieves Den gallery"><button type="button" className="den-close" onClick={() => setDenOpen(false)}>CLOSE ×</button><header><small>SECRET ARCHIVE</small><h2>THIEVES DEN</h2><p>Your playthrough leaves evidence behind.</p></header><div className="den-stats"><span><b>{totalDone}</b>ACTIONS CLEARED</span><span><b>{approval}%</b>APPROVAL</span><span><b>{Object.values(ranks).filter(rank => rank >= 10).length}</b>MAX BONDS</span></div><div className="den-gallery"><article className={totalDone >= 25 ? "unlocked" : "locked"}><i>01</i><strong>FIRST CALLING CARD</strong><span>{totalDone >= 25 ? "25 actions completed" : `${Math.max(0, 25 - totalDone)} actions remain`}</span></article><article className={totalDone >= 100 ? "unlocked" : "locked"}><i>02</i><strong>PHAN-SITE DARLING</strong><span>{totalDone >= 100 ? "100 actions completed" : `${Math.max(0, 100 - totalDone)} actions remain`}</span></article><article className={totalDone >= 250 ? "unlocked" : "locked"}><i>03</i><strong>TAKE YOUR TIME</strong><span>{totalDone >= 250 ? "250 actions completed" : `${Math.max(0, 250 - totalDone)} actions remain`}</span></article></div></section>}
   </main>;
 }
