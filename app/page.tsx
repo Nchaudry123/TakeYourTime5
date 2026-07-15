@@ -233,7 +233,6 @@ export default function Home() {
       <div className="ink-noise" />
       <div className="city-echo" ref={cityEcho} aria-hidden="true" />
       <div className="ambient-shards" aria-hidden="true"><i /><i /><i /><i /><i /></div>
-      <div className={`day-wipe ${dayMotion}`} key={`wipe-${motionKey}`} aria-hidden="true"><i /><i /><i /><span>{selected.getDate()}</span></div>
       <header className="masthead">
         <div className="brand"><span>TAKE YOUR</span><strong>TIME</strong><em>ROYAL</em></div>
         <div className="month-control" aria-label={`${monthNames[selected.getMonth()]} 20XX`}><span key={`month-${selected.getMonth()}`}><small>20XX</small>{monthNames[selected.getMonth()]}</span></div>
@@ -277,10 +276,9 @@ export default function Home() {
         <div className="transit-layout">
           <div className="rail-map" aria-label="Adaptive Persona 5 Royal travel map">
             <svg className="adaptive-rail" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <path className="map-district district-west" d="M2 14 L29 3 43 22 31 48 8 66 2 43Z" />
-              <path className="map-district district-central" d="M27 31 L61 7 83 22 75 60 56 91 29 77Z" />
-              <path className="map-district district-east" d="M64 14 L98 28 96 88 58 95 75 59Z" />
-              {railLinks.map(link => { const from = places.find(place => place.id === link.from)!; const to = places.find(place => place.id === link.to)!; const open = unlockedPlaceIds.has(from.id) && unlockedPlaceIds.has(to.id); return <line key={`${link.from}-${link.to}`} className={`rail-link ${link.tone} ${open ? "open" : "locked"}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />; })}
+              <defs><mask id="progressive-map-reveal"><rect width="100" height="100" fill="black" />{railLinks.map(link => { const from = places.find(place => place.id === link.from)!; const to = places.find(place => place.id === link.to)!; const open = unlockedPlaceIds.has(from.id) && unlockedPlaceIds.has(to.id); return open ? <line key={`${link.from}-${link.to}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="white" strokeWidth="9" strokeLinecap="round" /> : null; })}{places.filter(place => place.id !== "metaverse" && unlockedPlaceIds.has(place.id)).map(place => <circle key={place.id} cx={place.x} cy={place.y} r="10" fill="white" />)}</mask></defs>
+              <image className="map-image locked-map" href="/P5R_Tokyo_Subway_Map.png?v=3" width="100" height="100" preserveAspectRatio="none" />
+              <image className="map-image revealed-map" href="/P5R_Tokyo_Subway_Map.png?v=3" width="100" height="100" preserveAspectRatio="none" mask="url(#progressive-map-reveal)" />
             </svg>
             <span className="map-scan" aria-hidden="true" />
             {places.filter(place => place.id !== "metaverse").map(place => { const unlocked = unlockedPlaceIds.has(place.id); return <button key={place.id} aria-label={`${unlocked ? "Route to" : "View unlock requirements for"} ${place.name}`} className={`map-node ${place.tone} ${unlocked ? "unlocked" : "locked"} ${mapPlace.id === place.id ? "active" : ""}`} style={{ "--map-x": `${place.x}%`, "--map-y": `${place.y}%` } as React.CSSProperties} onClick={() => setSelectedPlaceId(place.id)}><i /><span>{unlocked ? place.name : `? · ${place.unlockAt}`}</span></button>; })}

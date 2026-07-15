@@ -32,7 +32,9 @@ test("ships live guidance, search, persistence, and Royal safeguards", async () 
   assert.match(navigator, /railLinks/);
   assert.match(page, /TOKYO NAVIGATOR/);
   assert.match(page, /Adaptive Persona 5 Royal travel map/);
-  assert.doesNotMatch(page, /P5R_Tokyo_Subway_Map\.png/);
+  assert.match(page, /P5R_Tokyo_Subway_Map\.png/);
+  assert.match(page, /progressive-map-reveal/);
+  assert.doesNotMatch(page, /day-wipe/);
   assert.match(page, /P5R_Calendar_Dagger\.png/);
   assert.match(page, /function openMap/);
 });
