@@ -89,12 +89,14 @@ export default function Home() {
   const [logoTaps, setLogoTaps] = useState(0);
   const [slowTime, setSlowTime] = useState(false);
   const [burgerTakeover, setBurgerTakeover] = useState(false);
+  const [callingTheme, setCallingTheme] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const cityLayer = useRef<HTMLDivElement>(null);
   const cityEcho = useRef<HTMLDivElement>(null);
   const plannerShell = useRef<HTMLElement>(null);
   const pointerFrame = useRef<number | null>(null);
   const velvetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const callingCode = useRef("");
   const pointerPosition = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -149,6 +151,21 @@ export default function Home() {
     const timer = setTimeout(() => setSlowTime(false), 6500);
     return () => clearTimeout(timer);
   }, [slowTime]);
+
+  useEffect(() => {
+    function listenForCallingCard(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
+      if (!/^[a-z]$/i.test(event.key)) return;
+      callingCode.current = `${callingCode.current}${event.key.toUpperCase()}`.slice(-20);
+      if (callingCode.current.endsWith("TAKEYOURHEART")) {
+        setCallingTheme(true);
+        callingCode.current = "";
+      }
+    }
+    window.addEventListener("keydown", listenForCallingCard);
+    return () => window.removeEventListener("keydown", listenForCallingCard);
+  }, []);
 
   async function refreshGuide() {
     setGuideStatus(current => current === "cached" ? "cached" : "loading");
@@ -282,7 +299,7 @@ export default function Home() {
     velvetTimer.current = null;
   }
 
-  return <main className={`${focusMode ? "focus-mode" : ""} ${daySecured ? "day-secured" : ""} ${velvetMode ? "velvet-mode" : ""} ${slowTime ? "slow-time" : ""} ${burgerTakeover ? "big-bang-day" : ""} motion-${dayMotion}`}>
+  return <main className={`${focusMode ? "focus-mode" : ""} ${daySecured ? "day-secured" : ""} ${velvetMode ? "velvet-mode" : ""} ${slowTime ? "slow-time" : ""} ${burgerTakeover ? "big-bang-day" : ""} ${callingTheme ? "calling-theme" : ""} motion-${dayMotion}`}>
     <section className="hero" aria-label="Persona 5 Royal calendar" onPointerMove={moveCity}>
       <div className="city-layer" ref={cityLayer} aria-hidden="true" />
       <div className="ink-noise" />
@@ -368,5 +385,6 @@ export default function Home() {
     {denOpen && <section className="thieves-den" role="dialog" aria-modal="true" aria-label="Thieves Den gallery"><button type="button" className="den-close" onClick={() => setDenOpen(false)}>CLOSE ×</button><header><small>SECRET ARCHIVE</small><h2>THIEVES DEN</h2><p>Your playthrough leaves evidence behind.</p></header><div className="den-stats"><span><b>{totalDone}</b>ACTIONS CLEARED</span><span><b>{approval}%</b>APPROVAL</span><span><b>{Object.values(ranks).filter(rank => rank >= 10).length}</b>MAX BONDS</span></div><div className="den-gallery"><article className={totalDone >= 25 ? "unlocked" : "locked"}><i>01</i><strong>FIRST CALLING CARD</strong><span>{totalDone >= 25 ? "25 actions completed" : `${Math.max(0, 25 - totalDone)} actions remain`}</span></article><article className={totalDone >= 100 ? "unlocked" : "locked"}><i>02</i><strong>PHAN-SITE DARLING</strong><span>{totalDone >= 100 ? "100 actions completed" : `${Math.max(0, 100 - totalDone)} actions remain`}</span></article><article className={totalDone >= 250 ? "unlocked" : "locked"}><i>03</i><strong>TAKE YOUR TIME</strong><span>{totalDone >= 250 ? "250 actions completed" : `${Math.max(0, 250 - totalDone)} actions remain`}</span></article></div></section>}
     {slowTime && <div className="slow-time-notice" aria-live="polite"><small>TIME DISTORTION</small><strong>TAKE YOUR TIME.</strong></div>}
     {burgerTakeover && <div className="big-bang-banner" aria-live="polite"><small>APRIL 1 ONLY</small><strong>BIG BANG CHALLENGE!</strong><span>ALL ROUTES LEAD TO BURGER.</span></div>}
+    {callingTheme && <button type="button" className="calling-code-banner" onClick={() => setCallingTheme(false)} aria-label="Dismiss calling card theme"><small>CODE ACCEPTED</small><strong>TAKE YOUR HEART</strong><span>THE PHANTOM THEME HAS BEEN UNLOCKED</span><b>×</b></button>}
   </main>;
 }

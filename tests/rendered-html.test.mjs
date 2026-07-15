@@ -41,6 +41,7 @@ test("ships live guidance, search, persistence, and Royal safeguards", async () 
   assert.match(page, /thieves-den/);
   assert.match(page, /slow-time-notice/);
   assert.match(page, /big-bang-banner/);
+  assert.match(page, /TAKEYOURHEART/);
   assert.match(page, /Adaptive Persona 5 Royal travel map/);
   assert.match(page, /P5R_Tokyo_Subway_Map\.png/);
   assert.match(page, /progressive-map-reveal/);
