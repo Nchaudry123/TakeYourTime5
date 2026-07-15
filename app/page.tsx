@@ -83,6 +83,7 @@ export default function Home() {
   const [morganaVisible, setMorganaVisible] = useState(false);
   const [morganaTaps, setMorganaTaps] = useState(0);
   const [velvetMode, setVelvetMode] = useState(false);
+  const [phanFeedOpen, setPhanFeedOpen] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const cityLayer = useRef<HTMLDivElement>(null);
   const cityEcho = useRef<HTMLDivElement>(null);
@@ -196,6 +197,7 @@ export default function Home() {
   const routeProgress = Math.round(((selected.getTime() - GAME_START.getTime()) / (GAME_END.getTime() - GAME_START.getTime())) * 100);
   const royalRadar = royalDeadlines.find(target => target.date >= selected) || { label: "THIRD SEMESTER", date: GAME_END };
   const daysToRoyal = Math.max(0, Math.ceil((royalRadar.date.getTime() - selected.getTime()) / 86400000));
+  const approval = totalTasks ? Math.min(100, Math.round(totalDone / totalTasks * 100)) : 0;
 
   useEffect(() => {
     setSelectedPlaceId(current => {
@@ -276,7 +278,9 @@ export default function Home() {
 
     <section className="planner-shell" ref={plannerShell}>
       <aside>
-        <span className="section-kicker">PHANTOM LOG</span><strong className="completion">{totalDone}</strong><span className="tasks-cleared">OF {totalTasks || "—"} CLEARED</span>
+        <button type="button" className="section-kicker phan-site-trigger" onClick={() => setPhanFeedOpen(open => !open)} aria-expanded={phanFeedOpen}>PHANTOM LOG <small>PHAN-SITE ↗</small></button><strong className="completion">{totalDone}</strong><span className="tasks-cleared">OF {totalTasks || "—"} CLEARED</span>
+        <div className="approval-meter"><span>PUBLIC APPROVAL</span><strong>{approval}%</strong><i><b style={{ width: `${approval}%` }} /></i></div>
+        {phanFeedOpen && <div className="phan-feed" aria-live="polite"><span>PHANTOM AFICIONADO</span><p><b>NEW</b> Is the optimal route actually real?</p><p><b>HOT</b> They never waste an afternoon.</p><p><b>{approval >= 50 ? "BELIEVE" : "???"}</b> Approval is at {approval}%. Keep watching.</p></div>}
         <div className="progress-line"><i style={{ width: `${totalTasks ? totalDone / totalTasks * 100 : 0}%` }} /></div>
         <div className="royal-radar" style={{ "--radar-pressure": `${Math.max(8, 100 - Math.min(daysToRoyal, 100))}%` } as React.CSSProperties}><div><i /><i /><i /></div><span>NEXT ROYAL LOCK</span><strong>{daysToRoyal}</strong><small>DAYS · {royalRadar.label}</small></div>
         <button className="next-mission" onClick={nextIncomplete} disabled={!guideDays.length}>NEXT OPEN DAY →</button>
