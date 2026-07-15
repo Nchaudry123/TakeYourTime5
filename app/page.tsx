@@ -80,6 +80,8 @@ export default function Home() {
   const [dayMotion, setDayMotion] = useState<"forward" | "backward">("forward");
   const [selectedPlaceId, setSelectedPlaceId] = useState("shibuya");
   const [stationMenuOpen, setStationMenuOpen] = useState(false);
+  const [morganaVisible, setMorganaVisible] = useState(false);
+  const [morganaTaps, setMorganaTaps] = useState(0);
   const deferredQuery = useDeferredValue(query);
   const cityLayer = useRef<HTMLDivElement>(null);
   const cityEcho = useRef<HTMLDivElement>(null);
@@ -115,6 +117,11 @@ export default function Home() {
       active = false;
       if (pointerFrame.current !== null) cancelAnimationFrame(pointerFrame.current);
     };
+  }, []);
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+    setMorganaVisible(hour >= 23 || hour < 5);
   }, []);
 
   async function refreshGuide() {
@@ -316,5 +323,6 @@ export default function Home() {
       </div>}
     </section>
     <footer><strong>TAKE YOUR TIME.</strong><span>Live route • optimal answers • device-local progress</span></footer>
+    {morganaVisible && <aside className="morgana-nudge" aria-live="polite"><button type="button" className="morgana-face" onClick={() => setMorganaTaps(taps => taps + 1)} aria-label="Ask Morgana for another hint"><i /><b>★</b></button><div><small>MORGANA SAYS</small><strong>{morganaTaps >= 4 ? "I'M NOT A CAT!" : morganaTaps >= 2 ? "Seriously. Tomorrow is another day." : "Shouldn't you be getting to sleep?"}</strong><span>Late-night guide detected.</span></div><button type="button" className="morgana-close" onClick={() => setMorganaVisible(false)} aria-label="Dismiss Morgana">×</button></aside>}
   </main>;
 }
