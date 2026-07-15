@@ -149,7 +149,7 @@ function placeFor(text: string) {
   return "shibuya";
 }
 
-export function recoveryPlan(selected: Date, guideDays: GuideDay[], risks: DeadlineRisk[], stats: SocialStats, ranks: Record<string, number>, personas: string[], missedCount: number): RecoveryAction[] {
+export function recoveryPlan(selected: Date, guideDays: GuideDay[], risks: DeadlineRisk[], stats: SocialStats, ranks: Record<string, number>, personas: string[] = [], missedCount = 0): RecoveryAction[] {
   const result: RecoveryAction[] = [];
   const urgent = risks.filter(risk => risk.status !== "safe");
   for (const risk of urgent) {

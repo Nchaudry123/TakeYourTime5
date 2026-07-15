@@ -60,7 +60,7 @@ function planFor(date: Date): DayPlan {
 function DateCard({ date, selected, distance, motion, onSelect }: { date: Date; selected: boolean; distance: number; motion: "forward" | "backward"; onSelect: () => void }) {
   return <button className={`date-card ${selected ? "selected" : ""} ${date.getDay() === 0 ? "sunday" : ""}`} data-day={date.getDate()} style={{ "--distance": distance, "--slot": distance + 3 } as React.CSSProperties} onClick={onSelect} aria-label={`Select ${date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}`} aria-current={selected ? "date" : undefined}>
     {selected && <span className="current-day-label" aria-hidden="true">CURRENT DAY</span>}
-    {selected && <span className={`calendar-dagger ${motion}`} aria-hidden="true"><Image src="/P5R_Calendar_Dagger.png" alt="" width={132} height={132} priority /></span>}
+    {selected && <span className={`calendar-dagger ${motion}`} aria-hidden="true"><Image src="/P5R_Calendar_Dagger.png" alt="" width={132} height={132} style={{ width: "100%", height: "100%" }} priority /></span>}
     <span className="day-number">{date.getDate()}</span><span className="weekday">{label(date)}</span>
   </button>;
 }
