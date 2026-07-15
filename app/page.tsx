@@ -31,6 +31,11 @@ const characterMessages: Record<string, { name: string; initial: string; message
   "12/24": { name: "Morgana", initial: "M", message: "Whatever happens, we made it here together." },
   "1/13": { name: "Kasumi", initial: "K", message: "Let's make every remaining day count." },
 };
+const valentineChoices = [
+  "Ann Takamaki", "Makoto Niijima", "Futaba Sakura", "Haru Okumura", "Tae Takemi",
+  "Sadayo Kawakami", "Chihaya Mifune", "Hifumi Togo", "Ichiko Ohya", "Sumire Yoshizawa",
+  "Ryuji & Yusuke",
+];
 
 function keyFor(date: Date) { return `${date.getMonth() + 1}/${date.getDate()}`; }
 function gameDate(month: number, day: number) { return new Date(month >= 4 ? 2016 : 2017, month - 1, day); }
@@ -100,6 +105,7 @@ export default function Home() {
   const [logoTaps, setLogoTaps] = useState(0);
   const [slowTime, setSlowTime] = useState(false);
   const [burgerTakeover, setBurgerTakeover] = useState(false);
+  const [valentine, setValentine] = useState("");
   const [callingTheme, setCallingTheme] = useState(false);
   const [dismissedMessage, setDismissedMessage] = useState("");
   const [callingCardVisible, setCallingCardVisible] = useState(false);
@@ -122,6 +128,7 @@ export default function Home() {
         setRanks(JSON.parse(localStorage.getItem("take-your-time-ranks") || "{\"Councillor\":0,\"Justice\":0,\"Faith\":0}"));
         const savedDate = localStorage.getItem("take-your-time-current-day");
         if (savedDate) setSelected(clampDate(new Date(`${savedDate}T12:00:00`)));
+        setValentine(localStorage.getItem("take-your-time-valentine") || "");
         const cached = readCachedGuide();
         if (cached) {
           hasCache = true;
@@ -145,8 +152,6 @@ export default function Home() {
   useEffect(() => {
     const hour = new Date().getHours();
     setMorganaVisible(hour >= 23 || hour < 5);
-    const now = new Date();
-    setBurgerTakeover((now.getMonth() === 3 && now.getDate() === 1) || new URLSearchParams(window.location.search).has("bigbang"));
   }, []);
 
   useEffect(() => {
@@ -254,6 +259,17 @@ export default function Home() {
   const characterMessage = characterMessages[dateKey];
 
   useEffect(() => {
+    const preview = new URLSearchParams(window.location.search).has("bigbang");
+    setBurgerTakeover((dateKey === "5/6" && panel === "map") || preview);
+    if (dateKey === "5/6" && panel === "map") setSelectedPlaceId("shibuya");
+  }, [dateKey, panel]);
+
+  function chooseValentine(name: string) {
+    setValentine(name);
+    localStorage.setItem("take-your-time-valentine", name);
+  }
+
+  useEffect(() => {
     if (!daySecured) { setCallingCardVisible(false); return; }
     setCallingCardVisible(true);
     const timer = setTimeout(() => setCallingCardVisible(false), 4200);
@@ -335,7 +351,7 @@ export default function Home() {
       <nav className="year-fold" aria-label="Jump through the game year"><span className="year-thread" style={{ "--route-progress": `${routeProgress}%` } as React.CSSProperties} />{yearPath.map(([name, month, day]) => <button key={name} className={selected.getMonth() === month - 1 ? "active" : ""} onClick={() => chooseDate(gameDate(month, day))} aria-label={`Jump to ${name}`}><i />{name}</button>)}</nav>
       <div className="status-strip" key={`status-${motionKey}`} aria-live="polite"><span>{selected.toLocaleDateString("en-US", { month: "long", day: "numeric" })}</span><strong>{daySecured ? "DAY SECURED" : statusTitle}</strong><span>{completed}/{taskTotal} DONE</span></div>
       {characterMessage && dismissedMessage !== dateKey && <aside className="character-message" aria-live="polite"><span>{characterMessage.initial}</span><div><small>IM · {characterMessage.name}</small><strong>{characterMessage.message}</strong></div><button type="button" onClick={() => setDismissedMessage(dateKey)} aria-label={`Dismiss message from ${characterMessage.name}`}>×</button></aside>}
-      {callingCardVisible && <div className="calling-card-complete" aria-live="polite"><small>TO THE MASTER OF THIS DAY:</small><strong>YOUR TIME<br />HAS BEEN TAKEN.</strong><span>ALL OBJECTIVES COMPLETE</span><b>THE PHANTOM THIEVES</b></div>}
+      {callingCardVisible && <div className="calling-card-complete" aria-live="polite"><small>MISSION REPORT:</small><strong>DAY<br />COMPLETE.</strong><span>ALL OBJECTIVES CLEARED</span><b>TAKE YOUR TIME.</b></div>}
     </section>
 
     <section className="planner-shell" ref={plannerShell}>
@@ -358,6 +374,7 @@ export default function Home() {
           <button className="refresh-guide" onClick={() => void refreshGuide()} aria-label="Refresh online guide">↻</button>
         </div>
         <div className="plan-heading"><span>MISSION FOR</span><h1>{monthNames[selected.getMonth()]} {selected.getDate()}</h1><p>{liveDay?.weekday || label(selected)}</p></div>
+        {dateKey === "2/14" && <section className="valentine-event" aria-label="Choose your Valentine"><header><small>FEBRUARY 14 · SPECIAL EVENT</small><h2>{valentine ? "VALENTINE LOCKED IN" : "WHO HAS YOUR HEART?"}</h2><p>{valentine ? `Tonight belongs to ${valentine}. Your choice is saved for this playthrough.` : "Choose who Joker will spend Valentine's evening with."}</p></header><div>{valentineChoices.map(name => <button type="button" className={valentine === name ? "chosen" : ""} onClick={() => chooseValentine(name)} key={name}><i>{name === "Ryuji & Yusuke" ? "★" : "♥"}</i><span><strong>{name}</strong><small>{name === "Ryuji & Yusuke" ? "FRIENDSHIP ROUTE" : "VALENTINE DATE"}</small></span><b>{valentine === name ? "CHOSEN" : "CHOOSE"}</b></button>)}</div></section>}
         {todayPlace && <button className="today-destination" onClick={() => openMap(todayPlace)}><span>GO HERE TODAY</span><strong>{todayPlace.name}</strong><small>{todayPlace.spots.join(" · ")}</small><b>OPEN ROUTE →</b></button>}
         {dayTasks.length > 0 ? <div className="live-sections">{taskSections.map(([section, tasks]) => <section className="guide-section" key={section}><h2>{section}</h2><div>{tasks.map(({ task, index, person, place }) => <LiveTask key={`${section}-${index}`} task={task} person={person} place={place} done={!!progress[`${dateKey}:${section}:${index}`]} spoilerSafe={spoilerSafe} toggle={() => toggle(`${dateKey}:${section}:${index}`)} openRoute={place ? () => openMap(place) : undefined} />)}</div></section>)}</div> : <div className="activities"><Activity slot="afternoon" data={plan.afternoon} done={!!progress[`${dateKey}-afternoon`]} toggle={() => toggle(`${dateKey}-afternoon`)} /><Activity slot="evening" data={plan.evening} done={!!progress[`${dateKey}-evening`]} toggle={() => toggle(`${dateKey}-evening`)} /></div>}
         <div className="source-row"><span>{syncedAt ? `Guide checked ${new Date(syncedAt).toLocaleDateString()}` : "Connecting to live guide…"}</span><a href={LIVE_GUIDE_URL} target="_blank" rel="noreferrer">Aqiu384 live schedule ↗</a><a href="https://gamefaqs.gamespot.com/ps4/260936-persona-5-royal/faqs/78629/walkthrough" target="_blank" rel="noreferrer">GameFAQs strategy ↗</a><a href="https://www.neoseeker.com/persona-5-royal/walkthrough" target="_blank" rel="noreferrer">Neoseeker cross-check ↗</a><a href="https://psnprofiles.com/guide/11946-persona-5-royal-100-perfect-schedule" target="_blank" rel="noreferrer">PSNProfiles perfect route ↗</a></div>
@@ -371,10 +388,10 @@ export default function Home() {
         <div className={`map-picker ${stationMenuOpen ? "open" : ""}`}>
           <button className="station-picker-trigger" type="button" aria-expanded={stationMenuOpen} aria-controls="station-roster" onClick={() => setStationMenuOpen(open => !open)}>
             <span className="station-command"><b>R1</b><small>SELECT STATION</small></span>
-            <span className="station-current"><small>{burgerTakeover ? "APRIL 1 CHALLENGE" : mapPlaceUnlocked ? "DESTINATION AVAILABLE" : `LOCKED UNTIL ${mapPlace.unlockAt}`}</small><strong>{burgerTakeover ? "Big Bang Burger" : mapPlace.name}</strong><em>{burgerTakeover ? "Every route leads to the challenge" : mapPlace.spots.slice(0, 3).join(" · ")}</em></span>
+            <span className="station-current"><small>{burgerTakeover ? "MAY 6 CHALLENGE UNLOCKED" : mapPlaceUnlocked ? "DESTINATION AVAILABLE" : `LOCKED UNTIL ${mapPlace.unlockAt}`}</small><strong>{burgerTakeover ? "Big Bang Burger" : mapPlace.name}</strong><em>{burgerTakeover ? "The challenge is now open in Shibuya" : mapPlace.spots.slice(0, 3).join(" · ")}</em></span>
             <span className="station-toggle" aria-hidden="true">{stationMenuOpen ? "CLOSE ×" : "CHANGE ▼"}</span>
           </button>
-          {stationMenuOpen && <div className="station-roster" id="station-roster" role="listbox" aria-label="Tokyo destinations">{places.filter(place => place.id !== "metaverse").map((place, index) => { const unlocked = unlockedPlaceIds.has(place.id); return <button type="button" role="option" aria-selected={place.id === mapPlace.id} className={`${unlocked ? "available" : "locked"} ${place.id === mapPlace.id ? "active" : ""}`} style={{ "--station-index": index } as React.CSSProperties} key={place.id} onClick={() => { setSelectedPlaceId(place.id); setStationMenuOpen(false); }}><i /><span><strong>{burgerTakeover ? `Big Bang Burger ${index + 1}` : place.name}</strong><small>{unlocked ? place.district : `REVEALS ${place.unlockAt}`}</small></span><b>{unlocked ? "GO" : "?"}</b></button>; })}</div>}
+          {stationMenuOpen && <div className="station-roster" id="station-roster" role="listbox" aria-label="Tokyo destinations">{places.filter(place => place.id !== "metaverse").map((place, index) => { const unlocked = unlockedPlaceIds.has(place.id); return <button type="button" role="option" aria-selected={place.id === mapPlace.id} className={`${unlocked ? "available" : "locked"} ${place.id === mapPlace.id ? "active" : ""}`} style={{ "--station-index": index } as React.CSSProperties} key={place.id} onClick={() => { setSelectedPlaceId(place.id); setStationMenuOpen(false); }}><i /><span><strong>{place.name}</strong><small>{unlocked ? place.district : `REVEALS ${place.unlockAt}`}</small></span><b>{unlocked ? "GO" : "?"}</b></button>; })}</div>}
         </div>
         <div className="transit-layout">
           <div className="rail-map" aria-label="Adaptive Persona 5 Royal travel map">
@@ -395,7 +412,7 @@ export default function Home() {
             {places.filter(place => place.id !== "metaverse").map(place => { const unlocked = unlockedPlaceIds.has(place.id); return <button key={place.id} aria-label={`${unlocked ? "Route to" : "View unlock requirements for"} ${place.name}`} className={`map-node ${place.tone} ${unlocked ? "unlocked" : "locked"} ${mapPlace.id === place.id ? "active" : ""}`} style={{ "--map-x": `${place.x}%`, "--map-y": `${place.y}%` } as React.CSSProperties} onClick={() => setSelectedPlaceId(place.id)}><i /><span>{unlocked ? place.name : `? · ${place.unlockAt}`}</span></button>; })}
             <div className="map-legend"><span><i className="open" />AVAILABLE</span><span><i />NOT YET REVEALED</span></div>
           </div>
-          <article className={`route-card ${mapPlaceUnlocked ? "available" : "locked"}`} key={`${mapPlace.id}-${mapPlaceUnlocked}`}><span className="route-kicker">{burgerTakeover ? "COSMIC FOOD CHALLENGE" : mapPlaceUnlocked ? "DESTINATION AVAILABLE" : "DESTINATION LOCKED"}</span><h2>{burgerTakeover ? "Big Bang Burger" : mapPlace.name}</h2><p>{mapPlace.district} · {mapPlace.line}</p><strong className="unlock-note">{burgerTakeover ? "ALL TRAINS LEAD TO BEEF" : mapPlace.unlock}</strong><ol>{mapPlace.route.map(step => <li key={step}>{step}</li>)}</ol><div className="spot-list">{mapPlace.spots.map(spot => <span key={spot}>{spot}</span>)}</div>{mapConfidants.length > 0 && <div className="people-here"><small>PEOPLE FOUND HERE</small>{mapConfidants.map(confidant => <div key={confidant.arcana}><b>{confidant.name}</b><span>{confidant.arcana} · {confidant.spot}</span></div>)}</div>}</article>
+          <article className={`route-card ${mapPlaceUnlocked ? "available" : "locked"}`} key={`${mapPlace.id}-${mapPlaceUnlocked}`}><span className="route-kicker">{burgerTakeover ? "COSMIC FOOD CHALLENGE" : mapPlaceUnlocked ? "DESTINATION AVAILABLE" : "DESTINATION LOCKED"}</span><h2>{burgerTakeover ? "Big Bang Burger" : mapPlace.name}</h2><p>{mapPlace.district} · {mapPlace.line}</p><strong className="unlock-note">{burgerTakeover ? "CHALLENGE AVAILABLE FROM TODAY" : mapPlace.unlock}</strong><ol>{mapPlace.route.map(step => <li key={step}>{step}</li>)}</ol><div className="spot-list">{mapPlace.spots.map(spot => <span key={spot}>{spot}</span>)}</div>{mapConfidants.length > 0 && <div className="people-here"><small>PEOPLE FOUND HERE</small>{mapConfidants.map(confidant => <div key={confidant.arcana}><b>{confidant.name}</b><span>{confidant.arcana} · {confidant.spot}</span></div>)}</div>}</article>
         </div>
         <p className="map-footnote"><b>{unlockedPlaceIds.size - 1} OF {places.length - 1} DESTINATIONS REVEALED FOR {monthNames[selected.getMonth()]} {selected.getDate()}.</b> Story districts appear automatically; book, invitation, and Confidant destinations follow the optimized guide route. The Yongen-Jaya ↔ Shibuya ↔ Aoyama-Itchome commuter-pass route is free.</p>
         <div className="map-sources"><span>UNLOCK RESEARCH</span><a href="https://aqiu384.github.io/megaten-database/p5r/overworld" target="_blank" rel="noreferrer">Megaten Database</a><a href="https://gamefaqs.gamespot.com/ps4/260936-persona-5-royal/faqs/78256" target="_blank" rel="noreferrer">GameFAQs route</a><a href="https://kamigame.jp/P5R/%E3%82%A8%E3%83%AA%E3%82%A2/index.html" target="_blank" rel="noreferrer">Kamigame unlock table</a></div>
@@ -406,7 +423,7 @@ export default function Home() {
     {velvetMode && <button type="button" className="velvet-curtain" onClick={() => setVelvetMode(false)} aria-label="Leave the Velvet Room"><span className="velvet-chain left" /><span className="velvet-chain right" /><span><small>THE VELVET ROOM</small><strong>WELCOME, INMATE</strong><em>Your rehabilitation continues.</em><b>TOUCH ANYWHERE TO RETURN</b></span></button>}
     {denOpen && <section className="thieves-den" role="dialog" aria-modal="true" aria-label="Thieves Den gallery"><button type="button" className="den-close" onClick={() => setDenOpen(false)}>CLOSE ×</button><header><small>SECRET ARCHIVE</small><h2>THIEVES DEN</h2><p>Your playthrough leaves evidence behind.</p></header><div className="den-stats"><span><b>{totalDone}</b>ACTIONS CLEARED</span><span><b>{approval}%</b>APPROVAL</span><span><b>{Object.values(ranks).filter(rank => rank >= 10).length}</b>MAX BONDS</span></div><div className="den-gallery"><article className={totalDone >= 25 ? "unlocked" : "locked"}><i>01</i><strong>FIRST CALLING CARD</strong><span>{totalDone >= 25 ? "25 actions completed" : `${Math.max(0, 25 - totalDone)} actions remain`}</span></article><article className={totalDone >= 100 ? "unlocked" : "locked"}><i>02</i><strong>PHAN-SITE DARLING</strong><span>{totalDone >= 100 ? "100 actions completed" : `${Math.max(0, 100 - totalDone)} actions remain`}</span></article><article className={totalDone >= 250 ? "unlocked" : "locked"}><i>03</i><strong>TAKE YOUR TIME</strong><span>{totalDone >= 250 ? "250 actions completed" : `${Math.max(0, 250 - totalDone)} actions remain`}</span></article></div></section>}
     {slowTime && <div className="slow-time-notice" aria-live="polite"><small>TIME DISTORTION</small><strong>TAKE YOUR TIME.</strong></div>}
-    {burgerTakeover && <div className="big-bang-banner" aria-live="polite"><small>APRIL 1 ONLY</small><strong>BIG BANG CHALLENGE!</strong><span>ALL ROUTES LEAD TO BURGER.</span></div>}
+    {burgerTakeover && <div className="big-bang-banner" aria-live="polite"><small>MAY 6 UNLOCK</small><strong>BIG BANG CHALLENGE!</strong><span>NOW OPEN IN SHIBUYA.</span></div>}
     {callingTheme && <button type="button" className="calling-code-banner" onClick={() => setCallingTheme(false)} aria-label="Dismiss calling card theme"><small>CODE ACCEPTED</small><strong>TAKE YOUR HEART</strong><span>THE PHANTOM THEME HAS BEEN UNLOCKED</span><b>×</b></button>}
   </main>;
 }
