@@ -84,6 +84,7 @@ export default function Home() {
   const [morganaTaps, setMorganaTaps] = useState(0);
   const [velvetMode, setVelvetMode] = useState(false);
   const [phanFeedOpen, setPhanFeedOpen] = useState(false);
+  const [monaRun, setMonaRun] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const cityLayer = useRef<HTMLDivElement>(null);
   const cityEcho = useRef<HTMLDivElement>(null);
@@ -126,6 +127,16 @@ export default function Home() {
     const hour = new Date().getHours();
     setMorganaVisible(hour >= 23 || hour < 5);
   }, []);
+
+  useEffect(() => {
+    if (panel !== "map") return;
+    const firstRide = !sessionStorage.getItem("take-your-time-morganamobile-seen");
+    if (!firstRide && Math.random() > .12) return;
+    sessionStorage.setItem("take-your-time-morganamobile-seen", "1");
+    setMonaRun(true);
+    const timer = setTimeout(() => setMonaRun(false), 4400);
+    return () => clearTimeout(timer);
+  }, [panel]);
 
   async function refreshGuide() {
     setGuideStatus(current => current === "cached" ? "cached" : "loading");
@@ -329,6 +340,7 @@ export default function Home() {
               <image className="map-image revealed-map" href="/P5R_Tokyo_Subway_Map.png?v=3" width="100" height="100" preserveAspectRatio="none" mask="url(#progressive-map-reveal)" />
             </svg>
             <span className="map-scan" aria-hidden="true" />
+            {monaRun && <span className="morganamobile" aria-hidden="true"><i /><b>M</b><em>★</em></span>}
             {places.filter(place => place.id !== "metaverse").map(place => { const unlocked = unlockedPlaceIds.has(place.id); return <button key={place.id} aria-label={`${unlocked ? "Route to" : "View unlock requirements for"} ${place.name}`} className={`map-node ${place.tone} ${unlocked ? "unlocked" : "locked"} ${mapPlace.id === place.id ? "active" : ""}`} style={{ "--map-x": `${place.x}%`, "--map-y": `${place.y}%` } as React.CSSProperties} onClick={() => setSelectedPlaceId(place.id)}><i /><span>{unlocked ? place.name : `? · ${place.unlockAt}`}</span></button>; })}
             <div className="map-legend"><span><i className="open" />AVAILABLE</span><span><i />NOT YET REVEALED</span></div>
           </div>
