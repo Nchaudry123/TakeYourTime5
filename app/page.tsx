@@ -39,6 +39,7 @@ function planFor(date: Date): DayPlan {
 
 function DateCard({ date, selected, distance, motion, onSelect }: { date: Date; selected: boolean; distance: number; motion: "forward" | "backward"; onSelect: () => void }) {
   return <button className={`date-card ${selected ? "selected" : ""} ${date.getDay() === 0 ? "sunday" : ""}`} data-day={date.getDate()} style={{ "--distance": distance, "--slot": distance + 3 } as React.CSSProperties} onClick={onSelect} aria-label={`Select ${date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}`} aria-current={selected ? "date" : undefined}>
+    {selected && <span className="current-day-label" aria-hidden="true">CURRENT DAY</span>}
     {selected && <span className={`calendar-dagger ${motion}`} aria-hidden="true"><img src="/P5R_Calendar_Dagger.png?v=3" alt="" /></span>}
     <span className="day-number">{date.getDate()}</span><span className="weekday">{label(date)}</span>
   </button>;
@@ -186,6 +187,14 @@ export default function Home() {
   const royalRadar = royalDeadlines.find(target => target.date >= selected) || { label: "THIRD SEMESTER", date: GAME_END };
   const daysToRoyal = Math.max(0, Math.ceil((royalRadar.date.getTime() - selected.getTime()) / 86400000));
 
+  useEffect(() => {
+    setSelectedPlaceId(current => {
+      const currentPlace = places.find(place => place.id === current);
+      if (currentPlace && isPlaceUnlocked(currentPlace, selected)) return current;
+      return [...places].reverse().find(place => place.id !== "metaverse" && isPlaceUnlocked(place, selected))?.id ?? "yongen";
+    });
+  }, [selected]);
+
   const searchIndex = useMemo(() => guideDays.map(day => ({ day, text: `${day.date} ${day.tasks.map(task => `${task.section} ${task.title} ${task.details.join(" ")}`).join(" ")}`.toLowerCase() })), [guideDays]);
   const searchResults = useMemo(() => {
     const term = deferredQuery.trim().toLowerCase();
@@ -276,7 +285,14 @@ export default function Home() {
         <div className="transit-layout">
           <div className="rail-map" aria-label="Adaptive Persona 5 Royal travel map">
             <svg className="adaptive-rail" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <defs><mask id="progressive-map-reveal"><rect width="100" height="100" fill="black" />{railLinks.map(link => { const from = places.find(place => place.id === link.from)!; const to = places.find(place => place.id === link.to)!; const open = unlockedPlaceIds.has(from.id) && unlockedPlaceIds.has(to.id); return open ? <line key={`${link.from}-${link.to}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="white" strokeWidth="9" strokeLinecap="round" /> : null; })}{places.filter(place => place.id !== "metaverse" && unlockedPlaceIds.has(place.id)).map(place => <circle key={place.id} cx={place.x} cy={place.y} r="10" fill="white" />)}</mask></defs>
+              <defs>
+                <filter id="ink-reveal-edge" x="-15%" y="-15%" width="130%" height="130%">
+                  <feTurbulence type="fractalNoise" baseFrequency=".045 .12" numOctaves="2" seed="17" result="inkNoise" />
+                  <feDisplacementMap in="SourceGraphic" in2="inkNoise" scale="3.6" xChannelSelector="R" yChannelSelector="B" />
+                  <feGaussianBlur stdDeviation=".55" />
+                </filter>
+                <mask id="progressive-map-reveal"><rect width="100" height="100" fill="black" /><g filter="url(#ink-reveal-edge)">{railLinks.map(link => { const from = places.find(place => place.id === link.from)!; const to = places.find(place => place.id === link.to)!; const open = unlockedPlaceIds.has(from.id) && unlockedPlaceIds.has(to.id); return open ? <line key={`${link.from}-${link.to}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="white" strokeWidth="7" strokeLinecap="round" /> : null; })}{places.filter(place => place.id !== "metaverse" && unlockedPlaceIds.has(place.id)).map(place => <circle key={place.id} cx={place.x} cy={place.y} r="7.5" fill="white" />)}</g></mask>
+              </defs>
               <image className="map-image locked-map" href="/P5R_Tokyo_Subway_Map.png?v=3" width="100" height="100" preserveAspectRatio="none" />
               <image className="map-image revealed-map" href="/P5R_Tokyo_Subway_Map.png?v=3" width="100" height="100" preserveAspectRatio="none" mask="url(#progressive-map-reveal)" />
             </svg>
