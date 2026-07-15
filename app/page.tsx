@@ -20,6 +20,17 @@ const yearPath = [
   ["APR", 4, 9], ["MAY", 5, 1], ["JUN", 6, 1], ["JUL", 7, 1], ["AUG", 8, 1], ["SEP", 9, 1],
   ["OCT", 10, 1], ["NOV", 11, 1], ["DEC", 12, 1], ["JAN", 1, 1], ["FEB", 2, 1], ["MAR", 3, 1],
 ] as const;
+const characterMessages: Record<string, { name: string; initial: string; message: string }> = {
+  "4/9": { name: "Morgana", initial: "M", message: "New city, new beginning. Take it one day at a time." },
+  "4/18": { name: "Ryuji", initial: "R", message: "Today's the day. Let's get this plan moving!" },
+  "6/5": { name: "Kasumi", initial: "K", message: "A new place can change your whole routine, senpai." },
+  "7/9": { name: "Makoto", initial: "M", message: "Check the schedule twice. Preparation is our advantage." },
+  "8/21": { name: "Futaba", initial: "F", message: "Calendar route optimized. Zero wasted turns!" },
+  "10/30": { name: "Haru", initial: "H", message: "Even a busy day deserves a quiet cup of tea." },
+  "11/17": { name: "Akechi", initial: "A", message: "Deadlines have a way of revealing one's priorities." },
+  "12/24": { name: "Morgana", initial: "M", message: "Whatever happens, we made it here together." },
+  "1/13": { name: "Kasumi", initial: "K", message: "Let's make every remaining day count." },
+};
 
 function keyFor(date: Date) { return `${date.getMonth() + 1}/${date.getDate()}`; }
 function gameDate(month: number, day: number) { return new Date(month >= 4 ? 2016 : 2017, month - 1, day); }
@@ -90,6 +101,7 @@ export default function Home() {
   const [slowTime, setSlowTime] = useState(false);
   const [burgerTakeover, setBurgerTakeover] = useState(false);
   const [callingTheme, setCallingTheme] = useState(false);
+  const [dismissedMessage, setDismissedMessage] = useState("");
   const deferredQuery = useDeferredValue(query);
   const cityLayer = useRef<HTMLDivElement>(null);
   const cityEcho = useRef<HTMLDivElement>(null);
@@ -238,6 +250,7 @@ export default function Home() {
   const royalRadar = royalDeadlines.find(target => target.date >= selected) || { label: "THIRD SEMESTER", date: GAME_END };
   const daysToRoyal = Math.max(0, Math.ceil((royalRadar.date.getTime() - selected.getTime()) / 86400000));
   const approval = totalTasks ? Math.min(100, Math.round(totalDone / totalTasks * 100)) : 0;
+  const characterMessage = characterMessages[dateKey];
 
   useEffect(() => {
     setSelectedPlaceId(current => {
@@ -313,6 +326,7 @@ export default function Home() {
       <div className="date-track" key={`track-${motionKey}`}>{days.map((date, index) => <DateCard key={date.toISOString()} date={date} selected={index === 3} distance={index - 3} motion={dayMotion} onSelect={() => chooseDate(date)} />)}</div>
       <nav className="year-fold" aria-label="Jump through the game year"><span className="year-thread" style={{ "--route-progress": `${routeProgress}%` } as React.CSSProperties} />{yearPath.map(([name, month, day]) => <button key={name} className={selected.getMonth() === month - 1 ? "active" : ""} onClick={() => chooseDate(gameDate(month, day))} aria-label={`Jump to ${name}`}><i />{name}</button>)}</nav>
       <div className="status-strip" key={`status-${motionKey}`} aria-live="polite"><span>{selected.toLocaleDateString("en-US", { month: "long", day: "numeric" })}</span><strong>{daySecured ? "DAY SECURED" : statusTitle}</strong><span>{completed}/{taskTotal} DONE</span></div>
+      {characterMessage && dismissedMessage !== dateKey && <aside className="character-message" aria-live="polite"><span>{characterMessage.initial}</span><div><small>IM · {characterMessage.name}</small><strong>{characterMessage.message}</strong></div><button type="button" onClick={() => setDismissedMessage(dateKey)} aria-label={`Dismiss message from ${characterMessage.name}`}>×</button></aside>}
       {daySecured && <div className="calling-card-complete" aria-live="polite"><small>TO THE MASTER OF THIS DAY:</small><strong>YOUR TIME<br />HAS BEEN TAKEN.</strong><span>ALL OBJECTIVES COMPLETE</span><b>THE PHANTOM THIEVES</b></div>}
     </section>
 
