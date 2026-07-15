@@ -28,8 +28,11 @@ test("ships live guidance, search, persistence, and Royal safeguards", async () 
   assert.match(navigator, /Ryuji Sakamoto/);
   assert.match(navigator, /Takuto Maruki/);
   assert.match(navigator, /Press R1 to open the Rail Map/);
+  assert.match(navigator, /unlockAt/);
+  assert.match(navigator, /railLinks/);
   assert.match(page, /TOKYO NAVIGATOR/);
-  assert.match(page, /P5R_Tokyo_Subway_Map\.png/);
+  assert.match(page, /Adaptive Persona 5 Royal travel map/);
+  assert.doesNotMatch(page, /P5R_Tokyo_Subway_Map\.png/);
   assert.match(page, /P5R_Calendar_Dagger\.png/);
   assert.match(page, /function openMap/);
 });

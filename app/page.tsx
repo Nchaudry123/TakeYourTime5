@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { fetchLiveGuide, LIVE_GUIDE_URL, readCachedGuide, type GuideDay, type GuideTask } from "./live-guide";
-import { confidants, findConfidant, findPlace, places, type Confidant, type Place } from "./navigator";
+import { confidants, findConfidant, findPlace, places, railLinks, type Confidant, type Place } from "./navigator";
 import { schedule, type DayPlan, otherConfidants, royalTargets } from "./schedule";
 
 type Slot = "afternoon" | "evening";
@@ -23,6 +23,8 @@ const yearPath = [
 
 function keyFor(date: Date) { return `${date.getMonth() + 1}/${date.getDate()}`; }
 function gameDate(month: number, day: number) { return new Date(month >= 4 ? 2016 : 2017, month - 1, day); }
+function unlockDate(key: string) { const [month, day] = key.split("/").map(Number); return gameDate(month, day); }
+function isPlaceUnlocked(place: Place, date: Date) { return date >= unlockDate(place.unlockAt); }
 function label(date: Date) { return date.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase(); }
 function inputDate(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
 function clampDate(date: Date) { return date < GAME_START ? GAME_START : date > GAME_END ? GAME_END : date; }
@@ -35,8 +37,9 @@ function planFor(date: Date): DayPlan {
     : { title: "Live route guidance", afternoon: { title: "Loading optimal route", detail: "The live walkthrough will replace this fallback automatically.", type: "confidant" }, evening: { title: "Check the guide feed", detail: "Cached guidance remains available when offline.", type: "stat" } };
 }
 
-function DateCard({ date, selected, distance, onSelect }: { date: Date; selected: boolean; distance: number; onSelect: () => void }) {
+function DateCard({ date, selected, distance, motion, onSelect }: { date: Date; selected: boolean; distance: number; motion: "forward" | "backward"; onSelect: () => void }) {
   return <button className={`date-card ${selected ? "selected" : ""} ${date.getDay() === 0 ? "sunday" : ""}`} data-day={date.getDate()} style={{ "--distance": distance, "--slot": distance + 3 } as React.CSSProperties} onClick={onSelect} aria-label={`Select ${date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}`} aria-current={selected ? "date" : undefined}>
+    {selected && <span className={`calendar-dagger ${motion}`} aria-hidden="true"><img src="/P5R_Calendar_Dagger.png?v=3" alt="" /></span>}
     <span className="day-number">{date.getDate()}</span><span className="weekday">{label(date)}</span>
   </button>;
 }
@@ -173,6 +176,8 @@ export default function Home() {
     }
   }, [dayTasks]);
   const mapPlace = places.find(place => place.id === selectedPlaceId) ?? places[0]!;
+  const unlockedPlaceIds = useMemo(() => new Set(places.filter(place => isPlaceUnlocked(place, selected)).map(place => place.id)), [selected]);
+  const mapPlaceUnlocked = unlockedPlaceIds.has(mapPlace.id);
   const mapConfidants = confidants.filter(confidant => confidant.place === mapPlace.id);
   const statusTitle = firstPerson ? `${firstPerson.name} — ${dayTasks[0].title}` : dayTasks[0]?.title || plan.title;
   const taskTotal = dayTasks.length || 2;
@@ -234,7 +239,7 @@ export default function Home() {
         <div className="month-control" aria-label={`${monthNames[selected.getMonth()]} 20XX`}><span key={`month-${selected.getMonth()}`}><small>20XX</small>{monthNames[selected.getMonth()]}</span></div>
         <div className="mode-controls"><button className={`focus-button ${focusMode ? "active" : ""}`} onClick={() => setFocusMode(value => !value)}>{focusMode ? "OPEN PLAN" : "FOCUS HEIST"}</button><button className="map-button" onClick={() => setPanel(panel === "map" ? "plan" : "map")}>TOKYO MAP</button><button className="royal-button" onClick={() => setPanel(panel === "royal" ? "plan" : "royal")}>ROYAL CHECK</button></div>
       </header>
-      <div className="date-track" key={`track-${motionKey}`}><span className={`calendar-dagger ${dayMotion}`} aria-hidden="true"><img src="/P5R_Calendar_Dagger.png?v=2" alt="" /></span>{days.map((date, index) => <DateCard key={date.toISOString()} date={date} selected={index === 3} distance={index - 3} onSelect={() => chooseDate(date)} />)}</div>
+      <div className="date-track" key={`track-${motionKey}`}>{days.map((date, index) => <DateCard key={date.toISOString()} date={date} selected={index === 3} distance={index - 3} motion={dayMotion} onSelect={() => chooseDate(date)} />)}</div>
       <nav className="year-fold" aria-label="Jump through the game year"><span className="year-thread" style={{ "--route-progress": `${routeProgress}%` } as React.CSSProperties} />{yearPath.map(([name, month, day]) => <button key={name} className={selected.getMonth() === month - 1 ? "active" : ""} onClick={() => chooseDate(gameDate(month, day))} aria-label={`Jump to ${name}`}><i />{name}</button>)}</nav>
       <div className="status-strip" key={`status-${motionKey}`} aria-live="polite"><span>{selected.toLocaleDateString("en-US", { month: "long", day: "numeric" })}</span><strong>{daySecured ? "DAY SECURED" : statusTitle}</strong><span>{completed}/{taskTotal} DONE</span></div>
       {daySecured && <div className="secured-stamp" aria-live="polite"><b>MISSION</b><strong>SECURED</strong><span>TAKE YOUR TIME</span></div>}
@@ -268,12 +273,23 @@ export default function Home() {
         <div className="confidant-grid">{otherConfidants.map(([arcana, name]) => <div className="mini-confidant" key={arcana}><span><small>{arcana}</small><b>{name}</b></span><span className="mini-ranker"><button onClick={() => updateRank(arcana, -1)}>−</button><b>{ranks[arcana] || 0}</b><button onClick={() => updateRank(arcana, 1)}>+</button></span></div>)}</div>
       </div> : <div className="map-panel">
         <div className="plan-heading"><span>R1 FAST TRAVEL</span><h1>TOKYO NAVIGATOR</h1><p>Choose a destination</p></div>
-        <div className="map-picker"><label htmlFor="place-picker">FIND A PLACE</label><select id="place-picker" value={mapPlace.id} onChange={event => setSelectedPlaceId(event.target.value)}>{places.map(place => <option value={place.id} key={place.id}>{place.name} — {place.spots.join(", ")}</option>)}</select></div>
+        <div className="map-picker"><label htmlFor="place-picker">FIND A PLACE</label><select id="place-picker" value={mapPlace.id} onChange={event => setSelectedPlaceId(event.target.value)}>{places.map(place => <option value={place.id} key={place.id}>{unlockedPlaceIds.has(place.id) ? "●" : "○ LOCKED"} {place.name} — {place.spots.join(", ")}</option>)}</select></div>
         <div className="transit-layout">
-          <div className="rail-map" aria-label="Persona 5 Royal travel map"><img className="subway-map" src="/P5R_Tokyo_Subway_Map.png?v=2" alt="Persona 5 Royal Tokyo subway map" /><span className="map-scan" aria-hidden="true" />{places.filter(place => place.id !== "metaverse").map(place => <button key={place.id} aria-label={`Route to ${place.name}`} className={`map-node ${place.tone} ${mapPlace.id === place.id ? "active" : ""}`} style={{ "--map-x": `${place.x}%`, "--map-y": `${place.y}%` } as React.CSSProperties} onClick={() => setSelectedPlaceId(place.id)}><i /><span>{place.name}</span></button>)}</div>
-          <article className="route-card" key={mapPlace.id}><span className="route-kicker">DESTINATION LOCKED</span><h2>{mapPlace.name}</h2><p>{mapPlace.district} · {mapPlace.line}</p><strong className="unlock-note">{mapPlace.unlock}</strong><ol>{mapPlace.route.map(step => <li key={step}>{step}</li>)}</ol><div className="spot-list">{mapPlace.spots.map(spot => <span key={spot}>{spot}</span>)}</div>{mapConfidants.length > 0 && <div className="people-here"><small>PEOPLE FOUND HERE</small>{mapConfidants.map(confidant => <div key={confidant.arcana}><b>{confidant.name}</b><span>{confidant.arcana} · {confidant.spot}</span></div>)}</div>}</article>
+          <div className="rail-map" aria-label="Adaptive Persona 5 Royal travel map">
+            <svg className="adaptive-rail" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <path className="map-district district-west" d="M2 14 L29 3 43 22 31 48 8 66 2 43Z" />
+              <path className="map-district district-central" d="M27 31 L61 7 83 22 75 60 56 91 29 77Z" />
+              <path className="map-district district-east" d="M64 14 L98 28 96 88 58 95 75 59Z" />
+              {railLinks.map(link => { const from = places.find(place => place.id === link.from)!; const to = places.find(place => place.id === link.to)!; const open = unlockedPlaceIds.has(from.id) && unlockedPlaceIds.has(to.id); return <line key={`${link.from}-${link.to}`} className={`rail-link ${link.tone} ${open ? "open" : "locked"}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />; })}
+            </svg>
+            <span className="map-scan" aria-hidden="true" />
+            {places.filter(place => place.id !== "metaverse").map(place => { const unlocked = unlockedPlaceIds.has(place.id); return <button key={place.id} aria-label={`${unlocked ? "Route to" : "View unlock requirements for"} ${place.name}`} className={`map-node ${place.tone} ${unlocked ? "unlocked" : "locked"} ${mapPlace.id === place.id ? "active" : ""}`} style={{ "--map-x": `${place.x}%`, "--map-y": `${place.y}%` } as React.CSSProperties} onClick={() => setSelectedPlaceId(place.id)}><i /><span>{unlocked ? place.name : `? · ${place.unlockAt}`}</span></button>; })}
+            <div className="map-legend"><span><i className="open" />AVAILABLE</span><span><i />NOT YET REVEALED</span></div>
+          </div>
+          <article className={`route-card ${mapPlaceUnlocked ? "available" : "locked"}`} key={`${mapPlace.id}-${mapPlaceUnlocked}`}><span className="route-kicker">{mapPlaceUnlocked ? "DESTINATION AVAILABLE" : "DESTINATION LOCKED"}</span><h2>{mapPlace.name}</h2><p>{mapPlace.district} · {mapPlace.line}</p><strong className="unlock-note">{mapPlace.unlock}</strong><ol>{mapPlace.route.map(step => <li key={step}>{step}</li>)}</ol><div className="spot-list">{mapPlace.spots.map(spot => <span key={spot}>{spot}</span>)}</div>{mapConfidants.length > 0 && <div className="people-here"><small>PEOPLE FOUND HERE</small>{mapConfidants.map(confidant => <div key={confidant.arcana}><b>{confidant.name}</b><span>{confidant.arcana} · {confidant.spot}</span></div>)}</div>}</article>
         </div>
-        <p className="map-footnote">Previously visited districts appear on the in-game R1 Rail Map. The Yongen-Jaya ↔ Shibuya ↔ Aoyama-Itchome commuter-pass route is free; other rail trips charge a small fare.</p>
+        <p className="map-footnote"><b>{unlockedPlaceIds.size - 1} OF {places.length - 1} DESTINATIONS REVEALED FOR {monthNames[selected.getMonth()]} {selected.getDate()}.</b> Story districts appear automatically; book, invitation, and Confidant destinations follow the optimized guide route. The Yongen-Jaya ↔ Shibuya ↔ Aoyama-Itchome commuter-pass route is free.</p>
+        <div className="map-sources"><span>UNLOCK RESEARCH</span><a href="https://aqiu384.github.io/megaten-database/p5r/overworld" target="_blank" rel="noreferrer">Megaten Database</a><a href="https://gamefaqs.gamespot.com/ps4/260936-persona-5-royal/faqs/78256" target="_blank" rel="noreferrer">GameFAQs route</a><a href="https://kamigame.jp/P5R/%E3%82%A8%E3%83%AA%E3%82%A2/index.html" target="_blank" rel="noreferrer">Kamigame unlock table</a></div>
       </div>}
     </section>
     <footer><strong>TAKE YOUR TIME.</strong><span>Live route • optimal answers • device-local progress</span></footer>
