@@ -271,7 +271,7 @@ export default function Home() {
       <div className="date-track" key={`track-${motionKey}`}>{days.map((date, index) => <DateCard key={date.toISOString()} date={date} selected={index === 3} distance={index - 3} motion={dayMotion} onSelect={() => chooseDate(date)} />)}</div>
       <nav className="year-fold" aria-label="Jump through the game year"><span className="year-thread" style={{ "--route-progress": `${routeProgress}%` } as React.CSSProperties} />{yearPath.map(([name, month, day]) => <button key={name} className={selected.getMonth() === month - 1 ? "active" : ""} onClick={() => chooseDate(gameDate(month, day))} aria-label={`Jump to ${name}`}><i />{name}</button>)}</nav>
       <div className="status-strip" key={`status-${motionKey}`} aria-live="polite"><span>{selected.toLocaleDateString("en-US", { month: "long", day: "numeric" })}</span><strong>{daySecured ? "DAY SECURED" : statusTitle}</strong><span>{completed}/{taskTotal} DONE</span></div>
-      {daySecured && <div className="secured-stamp" aria-live="polite"><b>MISSION</b><strong>SECURED</strong><span>TAKE YOUR TIME</span></div>}
+      {daySecured && <div className="calling-card-complete" aria-live="polite"><small>TO THE MASTER OF THIS DAY:</small><strong>YOUR TIME<br />HAS BEEN TAKEN.</strong><span>ALL OBJECTIVES COMPLETE</span><b>THE PHANTOM THIEVES</b></div>}
     </section>
 
     <section className="planner-shell" ref={plannerShell}>
