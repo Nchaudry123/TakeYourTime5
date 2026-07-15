@@ -82,11 +82,13 @@ export default function Home() {
   const [stationMenuOpen, setStationMenuOpen] = useState(false);
   const [morganaVisible, setMorganaVisible] = useState(false);
   const [morganaTaps, setMorganaTaps] = useState(0);
+  const [velvetMode, setVelvetMode] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const cityLayer = useRef<HTMLDivElement>(null);
   const cityEcho = useRef<HTMLDivElement>(null);
   const plannerShell = useRef<HTMLElement>(null);
   const pointerFrame = useRef<number | null>(null);
+  const velvetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointerPosition = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -245,7 +247,17 @@ export default function Home() {
     });
   }
 
-  return <main className={`${focusMode ? "focus-mode" : ""} ${daySecured ? "day-secured" : ""} motion-${dayMotion}`}>
+  function beginVelvetHold() {
+    if (velvetTimer.current) clearTimeout(velvetTimer.current);
+    velvetTimer.current = setTimeout(() => setVelvetMode(true), 1800);
+  }
+
+  function endVelvetHold() {
+    if (velvetTimer.current) clearTimeout(velvetTimer.current);
+    velvetTimer.current = null;
+  }
+
+  return <main className={`${focusMode ? "focus-mode" : ""} ${daySecured ? "day-secured" : ""} ${velvetMode ? "velvet-mode" : ""} motion-${dayMotion}`}>
     <section className="hero" aria-label="Persona 5 Royal calendar" onPointerMove={moveCity}>
       <div className="city-layer" ref={cityLayer} aria-hidden="true" />
       <div className="ink-noise" />
@@ -253,7 +265,7 @@ export default function Home() {
       <div className="ambient-shards" aria-hidden="true"><i /><i /><i /><i /><i /></div>
       <header className="masthead">
         <div className="brand"><span>TAKE YOUR</span><strong>TIME</strong><em>ROYAL</em></div>
-        <div className="month-control" aria-label={`${monthNames[selected.getMonth()]} 20XX`}><span key={`month-${selected.getMonth()}`}><small>20XX</small>{monthNames[selected.getMonth()]}</span></div>
+        <button className="month-control" type="button" aria-label={`${monthNames[selected.getMonth()]} 20XX. Hold to enter the Velvet Room.`} onPointerDown={beginVelvetHold} onPointerUp={endVelvetHold} onPointerLeave={endVelvetHold} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") beginVelvetHold(); }} onKeyUp={endVelvetHold}><span key={`month-${selected.getMonth()}`}><small>20XX</small>{monthNames[selected.getMonth()]}</span></button>
         <div className="mode-controls"><button className={`focus-button ${focusMode ? "active" : ""}`} onClick={() => setFocusMode(value => !value)}>{focusMode ? "OPEN PLAN" : "FOCUS HEIST"}</button><button className="map-button" onClick={() => setPanel(panel === "map" ? "plan" : "map")}>TOKYO MAP</button><button className="royal-button" onClick={() => setPanel(panel === "royal" ? "plan" : "royal")}>ROYAL CHECK</button></div>
       </header>
       <div className="date-track" key={`track-${motionKey}`}>{days.map((date, index) => <DateCard key={date.toISOString()} date={date} selected={index === 3} distance={index - 3} motion={dayMotion} onSelect={() => chooseDate(date)} />)}</div>
@@ -324,5 +336,6 @@ export default function Home() {
     </section>
     <footer><strong>TAKE YOUR TIME.</strong><span>Live route • optimal answers • device-local progress</span></footer>
     {morganaVisible && <aside className="morgana-nudge" aria-live="polite"><button type="button" className="morgana-face" onClick={() => setMorganaTaps(taps => taps + 1)} aria-label="Ask Morgana for another hint"><i /><b>★</b></button><div><small>MORGANA SAYS</small><strong>{morganaTaps >= 4 ? "I'M NOT A CAT!" : morganaTaps >= 2 ? "Seriously. Tomorrow is another day." : "Shouldn't you be getting to sleep?"}</strong><span>Late-night guide detected.</span></div><button type="button" className="morgana-close" onClick={() => setMorganaVisible(false)} aria-label="Dismiss Morgana">×</button></aside>}
+    {velvetMode && <button type="button" className="velvet-curtain" onClick={() => setVelvetMode(false)} aria-label="Leave the Velvet Room"><span className="velvet-chain left" /><span className="velvet-chain right" /><span><small>THE VELVET ROOM</small><strong>WELCOME, INMATE</strong><em>Your rehabilitation continues.</em><b>TOUCH ANYWHERE TO RETURN</b></span></button>}
   </main>;
 }
