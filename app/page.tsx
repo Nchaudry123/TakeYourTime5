@@ -79,6 +79,7 @@ export default function Home() {
   const [motionKey, setMotionKey] = useState(0);
   const [dayMotion, setDayMotion] = useState<"forward" | "backward">("forward");
   const [selectedPlaceId, setSelectedPlaceId] = useState("shibuya");
+  const [stationMenuOpen, setStationMenuOpen] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const cityLayer = useRef<HTMLDivElement>(null);
   const cityEcho = useRef<HTMLDivElement>(null);
@@ -215,6 +216,7 @@ export default function Home() {
 
   function openMap(place: Place) {
     setSelectedPlaceId(place.id);
+    setStationMenuOpen(false);
     setPanel("map");
     requestAnimationFrame(() => plannerShell.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
@@ -281,7 +283,14 @@ export default function Home() {
         <div className="confidant-grid">{otherConfidants.map(([arcana, name]) => <div className="mini-confidant" key={arcana}><span><small>{arcana}</small><b>{name}</b></span><span className="mini-ranker"><button onClick={() => updateRank(arcana, -1)}>−</button><b>{ranks[arcana] || 0}</b><button onClick={() => updateRank(arcana, 1)}>+</button></span></div>)}</div>
       </div> : <div className="map-panel">
         <div className="plan-heading"><span>R1 FAST TRAVEL</span><h1>TOKYO NAVIGATOR</h1><p>Choose a destination</p></div>
-        <div className="map-picker"><label htmlFor="place-picker">FIND A PLACE</label><select id="place-picker" value={mapPlace.id} onChange={event => setSelectedPlaceId(event.target.value)}>{places.map(place => <option value={place.id} key={place.id}>{unlockedPlaceIds.has(place.id) ? "●" : "○ LOCKED"} {place.name} — {place.spots.join(", ")}</option>)}</select></div>
+        <div className={`map-picker ${stationMenuOpen ? "open" : ""}`}>
+          <button className="station-picker-trigger" type="button" aria-expanded={stationMenuOpen} aria-controls="station-roster" onClick={() => setStationMenuOpen(open => !open)}>
+            <span className="station-command"><b>R1</b><small>SELECT STATION</small></span>
+            <span className="station-current"><small>{mapPlaceUnlocked ? "DESTINATION AVAILABLE" : `LOCKED UNTIL ${mapPlace.unlockAt}`}</small><strong>{mapPlace.name}</strong><em>{mapPlace.spots.slice(0, 3).join(" · ")}</em></span>
+            <span className="station-toggle" aria-hidden="true">{stationMenuOpen ? "CLOSE ×" : "CHANGE ▼"}</span>
+          </button>
+          {stationMenuOpen && <div className="station-roster" id="station-roster" role="listbox" aria-label="Tokyo destinations">{places.filter(place => place.id !== "metaverse").map((place, index) => { const unlocked = unlockedPlaceIds.has(place.id); return <button type="button" role="option" aria-selected={place.id === mapPlace.id} className={`${unlocked ? "available" : "locked"} ${place.id === mapPlace.id ? "active" : ""}`} style={{ "--station-index": index } as React.CSSProperties} key={place.id} onClick={() => { setSelectedPlaceId(place.id); setStationMenuOpen(false); }}><i /><span><strong>{place.name}</strong><small>{unlocked ? place.district : `REVEALS ${place.unlockAt}`}</small></span><b>{unlocked ? "GO" : "?"}</b></button>; })}</div>}
+        </div>
         <div className="transit-layout">
           <div className="rail-map" aria-label="Adaptive Persona 5 Royal travel map">
             <svg className="adaptive-rail" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
