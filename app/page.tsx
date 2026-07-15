@@ -86,6 +86,8 @@ export default function Home() {
   const [phanFeedOpen, setPhanFeedOpen] = useState(false);
   const [monaRun, setMonaRun] = useState(false);
   const [denOpen, setDenOpen] = useState(false);
+  const [logoTaps, setLogoTaps] = useState(0);
+  const [slowTime, setSlowTime] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const cityLayer = useRef<HTMLDivElement>(null);
   const cityEcho = useRef<HTMLDivElement>(null);
@@ -138,6 +140,12 @@ export default function Home() {
     const timer = setTimeout(() => setMonaRun(false), 4400);
     return () => clearTimeout(timer);
   }, [panel]);
+
+  useEffect(() => {
+    if (!slowTime) return;
+    const timer = setTimeout(() => setSlowTime(false), 6500);
+    return () => clearTimeout(timer);
+  }, [slowTime]);
 
   async function refreshGuide() {
     setGuideStatus(current => current === "cached" ? "cached" : "loading");
@@ -271,14 +279,14 @@ export default function Home() {
     velvetTimer.current = null;
   }
 
-  return <main className={`${focusMode ? "focus-mode" : ""} ${daySecured ? "day-secured" : ""} ${velvetMode ? "velvet-mode" : ""} motion-${dayMotion}`}>
+  return <main className={`${focusMode ? "focus-mode" : ""} ${daySecured ? "day-secured" : ""} ${velvetMode ? "velvet-mode" : ""} ${slowTime ? "slow-time" : ""} motion-${dayMotion}`}>
     <section className="hero" aria-label="Persona 5 Royal calendar" onPointerMove={moveCity}>
       <div className="city-layer" ref={cityLayer} aria-hidden="true" />
       <div className="ink-noise" />
       <div className="city-echo" ref={cityEcho} aria-hidden="true" />
       <div className="ambient-shards" aria-hidden="true"><i /><i /><i /><i /><i /></div>
       <header className="masthead">
-        <div className="brand"><span>TAKE YOUR</span><strong>TIME</strong><em>ROYAL</em></div>
+        <button type="button" className="brand" aria-label="Take Your Time" onClick={() => setLogoTaps(taps => { const next = taps + 1; if (next >= 5) { setSlowTime(true); return 0; } return next; })}><span>TAKE YOUR</span><strong>TIME</strong><em>ROYAL</em></button>
         <button className="month-control" type="button" aria-label={`${monthNames[selected.getMonth()]} 20XX. Hold to enter the Velvet Room.`} onPointerDown={beginVelvetHold} onPointerUp={endVelvetHold} onPointerLeave={endVelvetHold} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") beginVelvetHold(); }} onKeyUp={endVelvetHold}><span key={`month-${selected.getMonth()}`}><small>20XX</small>{monthNames[selected.getMonth()]}</span></button>
         <div className="mode-controls"><button className={`focus-button ${focusMode ? "active" : ""}`} onClick={() => setFocusMode(value => !value)}>{focusMode ? "OPEN PLAN" : "FOCUS HEIST"}</button><button className="map-button" onClick={() => setPanel(panel === "map" ? "plan" : "map")}>TOKYO MAP</button><button className="royal-button" onClick={() => setPanel(panel === "royal" ? "plan" : "royal")}>ROYAL CHECK</button></div>
       </header>
@@ -355,5 +363,6 @@ export default function Home() {
     {morganaVisible && <aside className="morgana-nudge" aria-live="polite"><button type="button" className="morgana-face" onClick={() => setMorganaTaps(taps => taps + 1)} aria-label="Ask Morgana for another hint"><i /><b>★</b></button><div><small>MORGANA SAYS</small><strong>{morganaTaps >= 4 ? "I'M NOT A CAT!" : morganaTaps >= 2 ? "Seriously. Tomorrow is another day." : "Shouldn't you be getting to sleep?"}</strong><span>Late-night guide detected.</span></div><button type="button" className="morgana-close" onClick={() => setMorganaVisible(false)} aria-label="Dismiss Morgana">×</button></aside>}
     {velvetMode && <button type="button" className="velvet-curtain" onClick={() => setVelvetMode(false)} aria-label="Leave the Velvet Room"><span className="velvet-chain left" /><span className="velvet-chain right" /><span><small>THE VELVET ROOM</small><strong>WELCOME, INMATE</strong><em>Your rehabilitation continues.</em><b>TOUCH ANYWHERE TO RETURN</b></span></button>}
     {denOpen && <section className="thieves-den" role="dialog" aria-modal="true" aria-label="Thieves Den gallery"><button type="button" className="den-close" onClick={() => setDenOpen(false)}>CLOSE ×</button><header><small>SECRET ARCHIVE</small><h2>THIEVES DEN</h2><p>Your playthrough leaves evidence behind.</p></header><div className="den-stats"><span><b>{totalDone}</b>ACTIONS CLEARED</span><span><b>{approval}%</b>APPROVAL</span><span><b>{Object.values(ranks).filter(rank => rank >= 10).length}</b>MAX BONDS</span></div><div className="den-gallery"><article className={totalDone >= 25 ? "unlocked" : "locked"}><i>01</i><strong>FIRST CALLING CARD</strong><span>{totalDone >= 25 ? "25 actions completed" : `${Math.max(0, 25 - totalDone)} actions remain`}</span></article><article className={totalDone >= 100 ? "unlocked" : "locked"}><i>02</i><strong>PHAN-SITE DARLING</strong><span>{totalDone >= 100 ? "100 actions completed" : `${Math.max(0, 100 - totalDone)} actions remain`}</span></article><article className={totalDone >= 250 ? "unlocked" : "locked"}><i>03</i><strong>TAKE YOUR TIME</strong><span>{totalDone >= 250 ? "250 actions completed" : `${Math.max(0, 250 - totalDone)} actions remain`}</span></article></div></section>}
+    {slowTime && <div className="slow-time-notice" aria-live="polite"><small>TIME DISTORTION</small><strong>TAKE YOUR TIME.</strong></div>}
   </main>;
 }
