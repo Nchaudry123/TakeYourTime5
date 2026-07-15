@@ -102,6 +102,7 @@ export default function Home() {
   const [burgerTakeover, setBurgerTakeover] = useState(false);
   const [callingTheme, setCallingTheme] = useState(false);
   const [dismissedMessage, setDismissedMessage] = useState("");
+  const [callingCardVisible, setCallingCardVisible] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const cityLayer = useRef<HTMLDivElement>(null);
   const cityEcho = useRef<HTMLDivElement>(null);
@@ -253,6 +254,13 @@ export default function Home() {
   const characterMessage = characterMessages[dateKey];
 
   useEffect(() => {
+    if (!daySecured) { setCallingCardVisible(false); return; }
+    setCallingCardVisible(true);
+    const timer = setTimeout(() => setCallingCardVisible(false), 4200);
+    return () => clearTimeout(timer);
+  }, [daySecured, dateKey]);
+
+  useEffect(() => {
     setSelectedPlaceId(current => {
       const currentPlace = places.find(place => place.id === current);
       if (currentPlace && isPlaceUnlocked(currentPlace, selected)) return current;
@@ -327,7 +335,7 @@ export default function Home() {
       <nav className="year-fold" aria-label="Jump through the game year"><span className="year-thread" style={{ "--route-progress": `${routeProgress}%` } as React.CSSProperties} />{yearPath.map(([name, month, day]) => <button key={name} className={selected.getMonth() === month - 1 ? "active" : ""} onClick={() => chooseDate(gameDate(month, day))} aria-label={`Jump to ${name}`}><i />{name}</button>)}</nav>
       <div className="status-strip" key={`status-${motionKey}`} aria-live="polite"><span>{selected.toLocaleDateString("en-US", { month: "long", day: "numeric" })}</span><strong>{daySecured ? "DAY SECURED" : statusTitle}</strong><span>{completed}/{taskTotal} DONE</span></div>
       {characterMessage && dismissedMessage !== dateKey && <aside className="character-message" aria-live="polite"><span>{characterMessage.initial}</span><div><small>IM · {characterMessage.name}</small><strong>{characterMessage.message}</strong></div><button type="button" onClick={() => setDismissedMessage(dateKey)} aria-label={`Dismiss message from ${characterMessage.name}`}>×</button></aside>}
-      {daySecured && <div className="calling-card-complete" aria-live="polite"><small>TO THE MASTER OF THIS DAY:</small><strong>YOUR TIME<br />HAS BEEN TAKEN.</strong><span>ALL OBJECTIVES COMPLETE</span><b>THE PHANTOM THIEVES</b></div>}
+      {callingCardVisible && <div className="calling-card-complete" aria-live="polite"><small>TO THE MASTER OF THIS DAY:</small><strong>YOUR TIME<br />HAS BEEN TAKEN.</strong><span>ALL OBJECTIVES COMPLETE</span><b>THE PHANTOM THIEVES</b></div>}
     </section>
 
     <section className="planner-shell" ref={plannerShell}>
