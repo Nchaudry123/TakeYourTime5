@@ -6,7 +6,7 @@ import { fetchLiveGuide, LIVE_GUIDE_URL, readCachedGuide, type GuideDay, type Gu
 import { confidants, findConfidant, findPlace, places, railLinks, type Confidant, type Place } from "./navigator";
 import { schedule, type DayPlan, otherConfidants, royalTargets } from "./schedule";
 import RouteIntel from "./route-intel";
-import { availableAlternatives, createProfile, deadlineRisks, decodeProfiles, defaultSocialStats, encodeProfiles, normalizeProfile, recoveryPlan, type PlayerProfile, type SocialStatName, type SocialStats, type Weather } from "./adaptive-planner";
+import { availableAlternatives, createProfile, deadlineRisks, decodeProfiles, defaultSocialStats, encodeProfiles, normalizeProfile, personaArcanas, recoveryPlan, type PlayerProfile, type SocialStatName, type SocialStats, type Weather } from "./adaptive-planner";
 
 type Slot = "afternoon" | "evening";
 type Progress = Record<string, boolean>;
@@ -65,14 +65,14 @@ function DateCard({ date, selected, distance, motion, onSelect }: { date: Date; 
   </button>;
 }
 
-function Activity({ slot, data, done, missed, toggle, markMissed }: { slot: Slot; data: DayPlan[Slot]; done: boolean; missed: boolean; toggle: () => void; markMissed: () => void }) {
+function Activity({ slot, data, done, missed, toggle, markMissed, preview }: { slot: Slot; data: DayPlan[Slot]; done: boolean; missed: boolean; toggle: () => void; markMissed: () => void; preview: () => void }) {
   return <article className={`activity ${done ? "done" : ""} ${missed ? "missed" : ""}`}>
     <button type="button" className="activity-main" onClick={toggle}><span className="checkbox" aria-hidden="true">{done ? "✓" : ""}</span><span className="activity-copy"><small>{slot}</small><strong>{data.title}</strong><span>{data.detail}</span></span></button>
-    <span className="activity-actions"><span className={`tag ${data.type}`}>{data.type}</span><button type="button" className="miss-task" onClick={markMissed}>{missed ? "UNDO MISS" : "I MISSED THIS"}</button></span>
+    <span className="activity-actions"><span className={`tag ${data.type}`}>{data.type}</span><button type="button" className="what-if-task" onClick={preview}>WHAT IF I SKIP?</button><button type="button" className="miss-task" onClick={markMissed}>{missed ? "UNDO MISS" : "I MISSED THIS"}</button></span>
   </article>;
 }
 
-function LiveTask({ task, person, place, done, missed, spoilerSafe, toggle, markMissed, openRoute }: { task: GuideTask; person?: Confidant; place?: Place; done: boolean; missed: boolean; spoilerSafe: boolean; toggle: () => void; markMissed: () => void; openRoute?: () => void }) {
+function LiveTask({ task, person, place, done, missed, spoilerSafe, toggle, markMissed, preview, openRoute }: { task: GuideTask; person?: Confidant; place?: Place; done: boolean; missed: boolean; spoilerSafe: boolean; toggle: () => void; markMissed: () => void; preview: () => void; openRoute?: () => void }) {
   return <article className={`live-task ${done ? "done" : ""} ${missed ? "missed" : ""}`}>
     <button className="task-check" onClick={toggle} aria-label={`${done ? "Uncheck" : "Complete"} ${task.title}`}><span className="checkbox" aria-hidden="true">{done ? "✓" : ""}</span></button>
     <button className="task-open" onClick={openRoute || toggle} aria-label={place ? `Show route to ${place.name} for ${task.title}` : task.title}>
@@ -80,7 +80,7 @@ function LiveTask({ task, person, place, done, missed, spoilerSafe, toggle, mark
       {task.details.length > 0 && <span className={`task-details ${spoilerSafe && task.answer ? "masked" : ""}`}>{spoilerSafe && task.answer ? `${task.details.length} optimal answer${task.details.length === 1 ? "" : "s"} hidden` : task.details.join("  ›  ")}</span>}
       </span>
     </button>
-    <span className="task-action"><span className={`tag ${task.kind}`}>{task.kind}</span>{place && <button className="route-chip" onClick={openRoute}><b>R1</b>{place.name}<i>→</i></button>}<button type="button" className="miss-task" onClick={markMissed}>{missed ? "UNDO MISS" : "I MISSED THIS"}</button></span>
+    <span className="task-action"><span className={`tag ${task.kind}`}>{task.kind}</span>{place && <button className="route-chip" onClick={openRoute}><b>R1</b>{place.name}<i>→</i></button>}<button type="button" className="what-if-task" onClick={preview}>WHAT IF I SKIP?</button><button type="button" className="miss-task" onClick={markMissed}>{missed ? "UNDO MISS" : "I MISSED THIS"}</button></span>
   </article>;
 }
 
@@ -100,6 +100,8 @@ export default function Home() {
   const [importCode, setImportCode] = useState("");
   const [importError, setImportError] = useState("");
   const [recoveryFlash, setRecoveryFlash] = useState(false);
+  const [futabaAwakening, setFutabaAwakening] = useState(false);
+  const [consequence, setConsequence] = useState<{ id: string; title: string; kind: string; text: string } | null>(null);
   const [panel, setPanel] = useState<"plan" | "royal" | "map" | "intel">("plan");
   const [guideDays, setGuideDays] = useState<GuideDay[]>([]);
   const [guideStatus, setGuideStatus] = useState<"loading" | "live" | "cached" | "offline">("loading");
@@ -292,11 +294,28 @@ export default function Home() {
   const missedCount = Object.values(missed).filter(Boolean).length;
   const activeProfileBase = profiles.find(profile => profile.id === activeProfileId) || profiles[0] || INITIAL_PROFILE;
   const activeProfile = useMemo<PlayerProfile>(() => ({ ...activeProfileBase, progress, missed, ranks, stats, palaces, money, personas, weather }), [activeProfileBase, progress, missed, ranks, stats, palaces, money, personas, weather]);
+  const futabaNavUnlocked = palaces.includes("Futaba");
+  const navigatorName = futabaNavUnlocked ? "FUTABA NAV" : "PHANTOM ROUTE ANALYSIS";
   const routeRisks = useMemo(() => deadlineRisks(selected, ranks, guideDays), [selected, ranks, guideDays]);
   const overallRisk = routeRisks.some(risk => risk.status === "critical") ? "critical" : routeRisks.some(risk => risk.status === "tight") ? "tight" : "safe";
   const alternatives = useMemo(() => availableAlternatives(selected, weather, stats, money), [selected, weather, stats, money]);
   const recovery = useMemo(() => recoveryPlan(selected, guideDays, routeRisks, stats, ranks, personas, missedCount), [selected, guideDays, routeRisks, stats, ranks, personas, missedCount]);
   const exportCode = useMemo(() => typeof window === "undefined" ? "" : encodeProfiles(profiles.map(profile => profile.id === activeProfileId ? activeProfile : profile), activeProfileId), [profiles, activeProfileId, activeProfile]);
+  const dailyBriefing = useMemo(() => {
+    const taskText = dayTasks.length
+      ? dayTasks.map(task => `${task.title} ${task.details.join(" ")}`).join(" ")
+      : `${plan.title} ${plan.afternoon.title} ${plan.afternoon.detail} ${plan.evening.title} ${plan.evening.detail}`;
+    const requiredPersonas = personaArcanas.filter(arcana => taskText.toLowerCase().includes(arcana.toLowerCase()));
+    let cashRequired = 0;
+    for (const match of taskText.matchAll(/(?:[¥￥]\s*([\d,]+)|([\d,]+)\s*yen)/gi)) cashRequired += Number((match[1] || match[2] || "0").replaceAll(",", ""));
+    const taskPlaces = dayTasks.map(task => findPlace(task)).filter((place): place is Place => Boolean(place));
+    const destinations = Array.from(new Map(taskPlaces.map(place => [place.id, place])).values());
+    if (!destinations.length && todayPlace) destinations.push(todayPlace);
+    return { requiredPersonas, missingPersonas: requiredPersonas.filter(arcana => !personas.includes(arcana)), cashRequired, destinations, palaceKit: /palace|mementos|calling card|treasure/i.test(taskText), weatherNote: weather === "Rain" ? "Rain bonus: prioritize study, bathhouse, or indoor Confidants." : weather === "Flu Season" ? "Flu warning: Mementos Reaper farming conditions may apply." : `${weather} conditions: normal availability rules.` };
+  }, [dayTasks, plan, personas, todayPlace, weather]);
+  const consequenceRisk = consequence ? routeRisks.find(risk => consequence.text.toLowerCase().includes(risk.arcana.toLowerCase()) || consequence.text.toLowerCase().includes(risk.name.split(" ").at(-1)!.toLowerCase())) : undefined;
+  const consequenceBuffer = consequenceRisk ? consequenceRisk.meetings - Math.max(0, consequenceRisk.target - consequenceRisk.current) - 1 : null;
+  const consequenceStatus = consequence?.kind === "palace" || consequence?.kind === "story" ? "critical" : consequenceRisk ? consequenceBuffer! < 0 ? "critical" : consequenceBuffer === 0 ? "tight" : "safe" : "tight";
 
   useEffect(() => {
     const preview = new URLSearchParams(window.location.search).has("bigbang");
@@ -407,7 +426,13 @@ export default function Home() {
   }
 
   function updateStat(stat: SocialStatName, value: number) { setStats(current => ({ ...current, [stat]: Math.max(1, Math.min(5, value)) })); }
-  function togglePalace(palace: string) { setPalaces(current => current.includes(palace) ? current.filter(item => item !== palace) : [...current, palace]); }
+  function togglePalace(palace: string) {
+    if (palace === "Futaba" && !palaces.includes(palace)) {
+      setFutabaAwakening(true);
+      window.setTimeout(() => setFutabaAwakening(false), 3200);
+    }
+    setPalaces(current => current.includes(palace) ? current.filter(item => item !== palace) : [...current, palace]);
+  }
   function togglePersona(arcana: string) { setPersonas(current => current.includes(arcana) ? current.filter(item => item !== arcana) : [...current, arcana]); }
   function routeToPlace(placeId: string) { const place = places.find(item => item.id === placeId); if (place) openMap(place); }
 
@@ -456,7 +481,7 @@ export default function Home() {
       <aside>
         <button type="button" className="section-kicker phan-site-trigger" onClick={() => setPhanFeedOpen(open => !open)} aria-expanded={phanFeedOpen}>PHANTOM LOG <small>PHAN-SITE ↗</small></button><strong className="completion">{totalDone}</strong><span className="tasks-cleared">OF {totalTasks || "—"} CLEARED</span>
         <div className="approval-meter"><span>PUBLIC APPROVAL</span><strong>{approval}%</strong><i><b style={{ width: `${approval}%` }} /></i></div>
-        <button type="button" className={`adaptive-status ${overallRisk}`} onClick={() => setPanel("intel")}><span>FUTABA ROUTE SCAN</span><strong>{overallRisk === "safe" ? "ON TRACK" : overallRisk === "tight" ? "TIGHT" : "AT RISK"}</strong><small>{missedCount ? `${missedCount} MISSED · OPEN RECOVERY` : `${activeProfile.name} · OPEN INTEL`}</small></button>
+        <button type="button" className={`adaptive-status ${overallRisk} ${futabaNavUnlocked ? "oracle-online" : "pre-oracle"}`} onClick={() => setPanel("intel")}><span>{futabaNavUnlocked ? "FUTABA ROUTE SCAN" : "PHANTOM ROUTE SCAN"}</span><strong>{overallRisk === "safe" ? "ON TRACK" : overallRisk === "tight" ? "TIGHT" : "AT RISK"}</strong><small>{missedCount ? `${missedCount} MISSED · OPEN RECOVERY` : futabaNavUnlocked ? "ORACLE ONLINE · OPEN INTEL" : `${activeProfile.name} · ANALYSIS ENCRYPTED`}</small></button>
         {phanFeedOpen && <div className="phan-feed" aria-live="polite"><span>PHANTOM AFICIONADO</span><p><b>NEW</b> Is the optimal route actually real?</p><p><b>HOT</b> They never waste an afternoon.</p><p><b>{approval >= 50 ? "BELIEVE" : "???"}</b> Approval is at {approval}%. Keep watching.</p></div>}
         <div className="progress-line"><i style={{ width: `${totalTasks ? totalDone / totalTasks * 100 : 0}%` }} /></div>
         <div className="royal-radar" style={{ "--radar-pressure": `${Math.max(8, 100 - Math.min(daysToRoyal, 100))}%` } as React.CSSProperties}><div><i /><i /><i /></div><span>NEXT ROYAL LOCK</span><strong>{daysToRoyal}</strong><small>DAYS · {royalRadar.label}</small></div>
@@ -473,11 +498,12 @@ export default function Home() {
           <button className="refresh-guide" onClick={() => void refreshGuide()} aria-label="Refresh online guide">↻</button>
         </div>
         <div className="plan-heading"><span>MISSION FOR</span><h1>{monthNames[selected.getMonth()]} {selected.getDate()}</h1><p>{liveDay?.weekday || label(selected)}</p></div>
+        <section className="daily-briefing"><header><span>PRE-FLIGHT</span><div><small>THE GUIDE READS YOUR ACTUAL SAVE</small><h2>DAILY HEIST BRIEFING</h2></div><b>{dailyBriefing.missingPersonas.length || (dailyBriefing.cashRequired > money ? 1 : 0) ? "CHECK LOADOUT" : "READY"}</b></header><div className="briefing-grid"><button type="button" className={dailyBriefing.missingPersonas.length ? "warning" : "ready"} onClick={() => setPanel("intel")}><small>PERSONA CHECK</small><strong>{dailyBriefing.requiredPersonas.length ? dailyBriefing.requiredPersonas.join(" · ") : "NO MATCH NEEDED"}</strong><span>{dailyBriefing.missingPersonas.length ? `Missing: ${dailyBriefing.missingPersonas.join(", ")}` : "Arcana coverage confirmed."}</span></button><button type="button" className={dailyBriefing.cashRequired > money ? "warning" : "ready"} onClick={() => setPanel("intel")}><small>WALLET CHECK</small><strong>{dailyBriefing.cashRequired ? `¥${dailyBriefing.cashRequired.toLocaleString()}` : "NO REQUIRED SPEND"}</strong><span>{dailyBriefing.cashRequired > money ? `Short by ¥${(dailyBriefing.cashRequired - money).toLocaleString()}` : `Wallet: ¥${money.toLocaleString()}`}</span></button><button type="button" className="destination" disabled={!dailyBriefing.destinations[0]} onClick={() => dailyBriefing.destinations[0] && openMap(dailyBriefing.destinations[0])}><small>FIRST DESTINATION</small><strong>{dailyBriefing.destinations[0]?.name || "STAY FLEXIBLE"}</strong><span>{dailyBriefing.destinations[0] ? "R1 route prepared." : "No fixed travel required."}</span></button><article><small>CONDITIONS</small><strong>{weather.toUpperCase()}</strong><span>{dailyBriefing.weatherNote}</span></article>{dailyBriefing.palaceKit && <article className="palace-kit"><small>PALACE LOADOUT</small><strong>SP ITEMS · LOCKPICKS · SAVE</strong><span>One-day clear detected. Check recovery items before departure.</span></article>}</div></section>
         {dateKey === "2/14" && <section className="valentine-event" aria-label="Choose your Valentine"><header><small>FEBRUARY 14 · SPECIAL EVENT</small><h2>{valentine ? "VALENTINE LOCKED IN" : "WHO HAS YOUR HEART?"}</h2><p>{valentine ? `Tonight belongs to ${valentine}. Your choice is saved for this playthrough.` : "Choose who Joker will spend Valentine's evening with."}</p></header><div>{valentineChoices.map(name => <button type="button" className={valentine === name ? "chosen" : ""} onClick={() => chooseValentine(name)} key={name}><i>{name === "Ryuji & Yusuke" ? "★" : "♥"}</i><span><strong>{name}</strong><small>{name === "Ryuji & Yusuke" ? "FRIENDSHIP ROUTE" : "VALENTINE DATE"}</small></span><b>{valentine === name ? "CHOSEN" : "CHOOSE"}</b></button>)}</div></section>}
         {todayPlace && <button className="today-destination" onClick={() => openMap(todayPlace)}><span>GO HERE TODAY</span><strong>{todayPlace.name}</strong><small>{todayPlace.spots.join(" · ")}</small><b>OPEN ROUTE →</b></button>}
-        {dayTasks.length > 0 ? <div className="live-sections">{taskSections.map(([section, tasks]) => <section className="guide-section" key={section}><h2>{section}</h2><div>{tasks.map(({ task, index, person, place }) => { const taskId = `${dateKey}:${section}:${index}`; return <LiveTask key={`${section}-${index}`} task={task} person={person} place={place} done={!!progress[taskId]} missed={!!missed[taskId]} spoilerSafe={spoilerSafe} toggle={() => toggle(taskId)} markMissed={() => markMissed(taskId)} openRoute={place ? () => openMap(place) : undefined} />; })}</div></section>)}</div> : <div className="activities"><Activity slot="afternoon" data={plan.afternoon} done={!!progress[`${dateKey}-afternoon`]} missed={!!missed[`${dateKey}-afternoon`]} toggle={() => toggle(`${dateKey}-afternoon`)} markMissed={() => markMissed(`${dateKey}-afternoon`)} /><Activity slot="evening" data={plan.evening} done={!!progress[`${dateKey}-evening`]} missed={!!missed[`${dateKey}-evening`]} toggle={() => toggle(`${dateKey}-evening`)} markMissed={() => markMissed(`${dateKey}-evening`)} /></div>}
+        {dayTasks.length > 0 ? <div className="live-sections">{taskSections.map(([section, tasks]) => <section className="guide-section" key={section}><h2>{section}</h2><div>{tasks.map(({ task, index, person, place }) => { const taskId = `${dateKey}:${section}:${index}`; const taskText = `${task.title} ${task.details.join(" ")}`; return <LiveTask key={`${section}-${index}`} task={task} person={person} place={place} done={!!progress[taskId]} missed={!!missed[taskId]} spoilerSafe={spoilerSafe} toggle={() => toggle(taskId)} markMissed={() => markMissed(taskId)} preview={() => setConsequence({ id: taskId, title: task.title, kind: task.kind, text: taskText })} openRoute={place ? () => openMap(place) : undefined} />; })}</div></section>)}</div> : <div className="activities"><Activity slot="afternoon" data={plan.afternoon} done={!!progress[`${dateKey}-afternoon`]} missed={!!missed[`${dateKey}-afternoon`]} toggle={() => toggle(`${dateKey}-afternoon`)} markMissed={() => markMissed(`${dateKey}-afternoon`)} preview={() => setConsequence({ id: `${dateKey}-afternoon`, title: plan.afternoon.title, kind: plan.afternoon.type, text: `${plan.afternoon.title} ${plan.afternoon.detail}` })} /><Activity slot="evening" data={plan.evening} done={!!progress[`${dateKey}-evening`]} missed={!!missed[`${dateKey}-evening`]} toggle={() => toggle(`${dateKey}-evening`)} markMissed={() => markMissed(`${dateKey}-evening`)} preview={() => setConsequence({ id: `${dateKey}-evening`, title: plan.evening.title, kind: plan.evening.type, text: `${plan.evening.title} ${plan.evening.detail}` })} /></div>}
         <div className="source-row"><span>{syncedAt ? `Guide checked ${new Date(syncedAt).toLocaleDateString()}` : "Connecting to live guide…"}</span><a href={LIVE_GUIDE_URL} target="_blank" rel="noreferrer">Aqiu384 live schedule ↗</a><a href="https://gamefaqs.gamespot.com/ps4/260936-persona-5-royal/faqs/78629/walkthrough" target="_blank" rel="noreferrer">GameFAQs strategy ↗</a><a href="https://www.neoseeker.com/persona-5-royal/walkthrough" target="_blank" rel="noreferrer">Neoseeker cross-check ↗</a><a href="https://psnprofiles.com/guide/11946-persona-5-royal-100-perfect-schedule" target="_blank" rel="noreferrer">PSNProfiles perfect route ↗</a></div>
-      </div> : panel === "intel" ? <RouteIntel profile={activeProfile} profiles={profiles} activeId={activeProfileId} risks={routeRisks} alternatives={alternatives} recovery={recovery} missedCount={missedCount} exportCode={exportCode} importCode={importCode} importError={importError} onSelectProfile={selectProfile} onCreateProfile={createNewProfile} onDeleteProfile={deleteActiveProfile} onRenameProfile={renameActiveProfile} onStat={updateStat} onRank={updateRank} onMoney={value => setMoney(Math.max(0, value || 0))} onWeather={setWeather} onPalace={togglePalace} onPersona={togglePersona} onRoute={routeToPlace} onCopy={() => void copyRouteCode()} onImportCode={setImportCode} onImport={importRoutes} /> : panel === "royal" ? <div className="royal-panel">
+      </div> : panel === "intel" ? <RouteIntel profile={activeProfile} profiles={profiles} activeId={activeProfileId} risks={routeRisks} alternatives={alternatives} recovery={recovery} missedCount={missedCount} exportCode={exportCode} importCode={importCode} importError={importError} navigatorName={navigatorName} navigatorUnlocked={futabaNavUnlocked} onSelectProfile={selectProfile} onCreateProfile={createNewProfile} onDeleteProfile={deleteActiveProfile} onRenameProfile={renameActiveProfile} onStat={updateStat} onRank={updateRank} onMoney={value => setMoney(Math.max(0, value || 0))} onWeather={setWeather} onPalace={togglePalace} onPersona={togglePersona} onRoute={routeToPlace} onCopy={() => void copyRouteCode()} onImportCode={setImportCode} onImport={importRoutes} /> : panel === "royal" ? <div className="royal-panel">
         <div className="plan-heading"><span>THIRD SEMESTER</span><h1>ROYAL CHECK</h1><p>Deadlines are protected first.</p></div>
         <div className="targets">{royalTargets.map(target => { const value = ranks[target.arcana] || 0; return <div className="target" key={target.arcana}><div><small>{target.arcana}</small><strong>{target.name}</strong><span>Rank {target.rank} by {target.deadline}</span></div><div className="ranker"><button onClick={() => updateRank(target.arcana, -1)}>−</button><b>{value}</b><button onClick={() => updateRank(target.arcana, 1)}>+</button></div><i><b style={{ width: `${value / target.rank * 100}%` }} /></i></div>; })}</div>
         <div className="confidant-heading"><strong>ALL CONFIDANTS</strong><span>Track the rest of the Phantom Thieves&apos; network</span></div>
@@ -522,7 +548,16 @@ export default function Home() {
     {velvetMode && <button type="button" className="velvet-curtain" onClick={() => setVelvetMode(false)} aria-label="Leave the Velvet Room"><span className="velvet-chain left" /><span className="velvet-chain right" /><span><small>THE VELVET ROOM</small><strong>WELCOME, INMATE</strong><em>Your rehabilitation continues.</em><b>TOUCH ANYWHERE TO RETURN</b></span></button>}
     {denOpen && <section className="thieves-den" role="dialog" aria-modal="true" aria-label="Thieves Den gallery"><button type="button" className="den-close" onClick={() => setDenOpen(false)}>CLOSE ×</button><header><small>SECRET ARCHIVE</small><h2>THIEVES DEN</h2><p>Your playthrough leaves evidence behind.</p></header><div className="den-stats"><span><b>{totalDone}</b>ACTIONS CLEARED</span><span><b>{approval}%</b>APPROVAL</span><span><b>{Object.values(ranks).filter(rank => rank >= 10).length}</b>MAX BONDS</span></div><div className="den-gallery"><article className={totalDone >= 25 ? "unlocked" : "locked"}><i>01</i><strong>FIRST CALLING CARD</strong><span>{totalDone >= 25 ? "25 actions completed" : `${Math.max(0, 25 - totalDone)} actions remain`}</span></article><article className={totalDone >= 100 ? "unlocked" : "locked"}><i>02</i><strong>PHAN-SITE DARLING</strong><span>{totalDone >= 100 ? "100 actions completed" : `${Math.max(0, 100 - totalDone)} actions remain`}</span></article><article className={totalDone >= 250 ? "unlocked" : "locked"}><i>03</i><strong>TAKE YOUR TIME</strong><span>{totalDone >= 250 ? "250 actions completed" : `${Math.max(0, 250 - totalDone)} actions remain`}</span></article></div></section>}
     {slowTime && <div className="slow-time-notice" aria-live="polite"><small>TIME DISTORTION</small><strong>TAKE YOUR TIME.</strong></div>}
-    {recoveryFlash && <div className="recovery-flash" aria-live="polite"><small>FUTABA NAV</small><strong>ROUTE RECALCULATED</strong><span>RECOVERY OPTIONS UPDATED</span></div>}
+    {consequence && <section className={`consequence-preview ${consequenceStatus}`} role="dialog" aria-modal="true" aria-label="Skip consequence forecast">
+      <button type="button" className="consequence-close" onClick={() => setConsequence(null)} aria-label="Close forecast">×</button>
+      <header><small>COGNITIVE FORECAST</small><h2>WHAT IF YOU SKIP?</h2><p>No progress changes until you confirm.</p></header>
+      <article className="forecast-target"><small>SELECTED ACTION</small><strong>{consequence.title}</strong><span>{monthNames[selected.getMonth()]} {selected.getDate()} · {consequence.kind.toUpperCase()}</span></article>
+      <div className="forecast-impact"><span>{consequenceStatus === "critical" ? "HIGH IMPACT" : consequenceStatus === "tight" ? "ROUTE DRIFT" : "RECOVERABLE"}</span><strong>{consequenceRisk ? `${consequenceRisk.name} · ${consequenceRisk.arcana}` : consequence.kind === "palace" || consequence.kind === "story" ? "STORY ROUTE" : "OPEN-SLOT PRESSURE"}</strong><p>{consequence.kind === "palace" || consequence.kind === "story" ? "This is story-bound. Skipping it can block the calendar route instead of merely costing a free-time slot." : consequenceRisk ? `After skipping, the forecast leaves ${Math.max(0, consequenceBuffer ?? 0)} spare eligible meeting${consequenceBuffer === 1 ? "" : "s"} before the protected deadline.` : "The route can continue, but your next flexible opening will be reassigned to cover this lost time slot."}</p></div>
+      {recovery[0] && <article className="forecast-recovery"><small>BEST RECOVERY LEAD</small><strong>{recovery[0].date} · {recovery[0].title}</strong><span>{recovery[0].reason}</span><button type="button" onClick={() => { setConsequence(null); routeToPlace(recovery[0].placeId); }}>PREVIEW R1 ROUTE →</button></article>}
+      <footer><button type="button" onClick={() => setConsequence(null)}>KEEP ORIGINAL ROUTE</button><button type="button" className="confirm-miss" onClick={() => { markMissed(consequence.id); setConsequence(null); }}>MARK MISSED + RECALCULATE</button></footer>
+    </section>}
+    {recoveryFlash && <div className="recovery-flash" aria-live="polite"><small>{navigatorName}</small><strong>ROUTE RECALCULATED</strong><span>RECOVERY OPTIONS UPDATED</span></div>}
+    {futabaAwakening && <div className="futaba-awakening" aria-live="polite"><i>01</i><div><small>NAVIGATOR IDENTITY DECRYPTED</small><strong>FUTABA NAV ONLINE</strong><span>ORACLE HAS JOINED THE ROUTE</span></div><b>⌁</b></div>}
     {burgerTakeover && <div className="big-bang-banner" aria-live="polite"><small>MAY 6 UNLOCK</small><strong>BIG BANG CHALLENGE!</strong><span>NOW OPEN IN SHIBUYA.</span></div>}
     {callingTheme && <button type="button" className="calling-code-banner" onClick={() => setCallingTheme(false)} aria-label="Dismiss calling card theme"><small>CODE ACCEPTED</small><strong>TAKE YOUR HEART</strong><span>THE PHANTOM THEME HAS BEEN UNLOCKED</span><b>×</b></button>}
   </main>;

@@ -13,6 +13,8 @@ type Props = {
   exportCode: string;
   importCode: string;
   importError: string;
+  navigatorName: string;
+  navigatorUnlocked: boolean;
   onSelectProfile: (id: string) => void;
   onCreateProfile: () => void;
   onDeleteProfile: () => void;
@@ -29,10 +31,10 @@ type Props = {
   onImport: () => void;
 };
 
-export default function RouteIntel({ profile, profiles, activeId, risks, alternatives, recovery, missedCount, exportCode, importCode, importError, onSelectProfile, onCreateProfile, onDeleteProfile, onRenameProfile, onStat, onRank, onMoney, onWeather, onPalace, onPersona, onRoute, onCopy, onImportCode, onImport }: Props) {
+export default function RouteIntel({ profile, profiles, activeId, risks, alternatives, recovery, missedCount, exportCode, importCode, importError, navigatorName, navigatorUnlocked, onSelectProfile, onCreateProfile, onDeleteProfile, onRenameProfile, onStat, onRank, onMoney, onWeather, onPalace, onPersona, onRoute, onCopy, onImportCode, onImport }: Props) {
   const overall = risks.some(risk => risk.status === "critical") ? "critical" : risks.some(risk => risk.status === "tight") ? "tight" : "safe";
   return <div className="intel-panel">
-    <div className="plan-heading intel-heading"><span>FUTABA NAV</span><h1>ROUTE INTEL</h1><p>Adaptive playthrough control</p></div>
+    <div className={`plan-heading intel-heading ${navigatorUnlocked ? "awakened" : "pre-nav"}`}><span>{navigatorName}</span><h1>ROUTE INTEL</h1><p>{navigatorUnlocked ? "Oracle online · adaptive playthrough control" : "Anonymous tactical model · identity encrypted"}</p></div>
 
     <section className="profile-switcher">
       <div><small>ACTIVE SAVE</small><select value={activeId} onChange={event => onSelectProfile(event.target.value)} aria-label="Active playthrough profile">{profiles.map(item => <option value={item.id} key={item.id}>{item.name}</option>)}</select></div>

@@ -23,3 +23,21 @@ test("connects missed activities and Route Intel to the calendar", async () => {
   assert.match(intel, /USE \+ OPEN MAP/);
   assert.match(intel, /STEAL YOUR SAVE/);
 });
+
+test("gates Futaba Nav behind her Palace and previews route consequences", async () => {
+  const [page, intel, css] = await Promise.all([
+    readFile(new URL("app/page.tsx", root), "utf8"),
+    readFile(new URL("app/route-intel.tsx", root), "utf8"),
+    readFile(new URL("app/globals.css", root), "utf8"),
+  ]);
+
+  assert.match(page, /palaces\.includes\("Futaba"\)/);
+  assert.match(page, /PHANTOM ROUTE ANALYSIS/);
+  assert.match(page, /FUTABA NAV ONLINE/);
+  assert.match(intel, /identity encrypted/);
+  assert.match(page, /DAILY HEIST BRIEFING/);
+  assert.match(page, /WHAT IF I SKIP\?/);
+  assert.match(page, /No progress changes until you confirm/);
+  assert.match(css, /futaba-decrypt/);
+  assert.match(css, /consequence-preview/);
+});
